@@ -1,4 +1,4 @@
-package org.curiosity.rover.basic;
+package org.curiosity.rover.basic.cfg;
 
 import java.util.Date;
 import java.util.Iterator;
