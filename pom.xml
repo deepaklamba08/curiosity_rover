@@ -12,6 +12,7 @@
         <module>basic</module>
         <module>app</module>
         <module>dao</module>
+        <module>store</module>
     </modules>
 
     <properties>
