@@ -2,13 +2,17 @@ package org.curiosity.rover.store;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.curiosity.rover.store.util.DataUtil;
+import org.curiosity.rover.store.util.IOUtil;
 
-import java.io.*;
-import java.nio.file.Files;
+import java.io.File;
+import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class ObjectStore {
@@ -16,7 +20,6 @@ public class ObjectStore {
     private static final String METADATA_FILE_NAME = "store.json";
     private static final String METADATA_DIR_NAME = "object";
     private final String directory;
-    private ObjectMapper objectMapper = new ObjectMapper();
 
     public ObjectStore(String directory) {
         this.directory = directory;
@@ -44,43 +47,31 @@ public class ObjectStore {
         if (existing == null) {
             throw new IllegalArgumentException("Object not exists- " + name);
         }
-        return null;
+        return new QueryStatement(this, existing);
     }
 
 
     private ObjectMetadata readObjectMetadata(String name) {
-        ObjectMetadata metadata = readObjectMetadata().stream().filter(element -> element.getObjectName().equals(name))
+        ObjectMetadata metadata = this.readObjectMetadata().stream().filter(element -> element.getObjectName().equals(name))
                 .findAny().orElse(null);
         return metadata;
     }
 
     private List<ObjectMetadata> readObjectMetadata() {
         File metadataFile = this.getMetadataFilePath();
-        List<ObjectMetadata> metadataElements = new ArrayList<>();
-        try (InputStream inputStream = Files.newInputStream(metadataFile.toPath())) {
-            JsonNode jsonNode = objectMapper.readTree(inputStream);
-            jsonNode.elements().forEachRemaining(element -> {
-                metadataElements.add(this.mapObjectMetadata(element));
-            });
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        return null;
-    }
-
-    private ObjectMetadata mapObjectMetadata(JsonNode element) {
-        return null;
+        List<ObjectMetadata> metadataElements = IOUtil.readFile(metadataFile, this::mapObjectMetadata);
+        return metadataElements;
     }
 
 
     private void writeObjectMetadata(ObjectMetadata metadata) {
-        List<ObjectMetadata> existingElements = readObjectMetadata();
+        List<ObjectMetadata> existingElements = this.readObjectMetadata();
         existingElements.add(metadata);
         this.overwriteMetadata(existingElements);
     }
 
     private void updateObjectMetadata(ObjectMetadata metadata) {
-        List<ObjectMetadata> existingElements = readObjectMetadata().stream()
+        List<ObjectMetadata> existingElements = this.readObjectMetadata().stream()
                 .filter(element -> !element.getObjectName().equals(metadata.getObjectName()))
                 .collect(Collectors.toList());
         existingElements.add(metadata);
@@ -88,7 +79,87 @@ public class ObjectStore {
     }
 
     private void overwriteMetadata(List<ObjectMetadata> elements) {
+        IOUtil.writeFile(this.getMetadataFilePath(), this::convertObjectMetadata, elements);
+    }
 
+    private ObjectMetadata mapObjectMetadata(JsonNode element) {
+        ObjectMetadata.Builder builder = new ObjectMetadata.Builder()
+                .withObjectName(element.get("objectName").asText())
+                .withFileCount(element.get("fileCount").asInt())
+                .withBasePath(element.get("basePath").asText());
+
+        JsonNode createDate = element.get("createDate");
+        if (createDate != null) {
+            builder.withCreateDate(LocalDateTime.parse(createDate.asText()));
+        }
+        JsonNode updateDate = element.get("updateDate");
+        if (updateDate != null) {
+            builder.withUpdateDate(LocalDateTime.parse(updateDate.asText()));
+        }
+
+        JsonNode properties = element.get("properties");
+        ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
+        if (properties != null) {
+            builder.withProperties(objectMapper.convertValue(properties, Map.class));
+        }
+
+        JsonNode files = element.get("files");
+        if (files != null) {
+            AtomicInteger fileCount = new AtomicInteger();
+            files.elements().forEachRemaining(fileElement -> {
+                fileCount.getAndIncrement();
+                builder.withFileMetadata(this.mapFileMetadata(fileElement));
+            });
+            builder.withFileCount(fileCount.get());
+        }
+
+        return builder.build();
+    }
+
+    private FileMetadata mapFileMetadata(JsonNode fileElement) {
+        FileMetadata fileMetadata = new FileMetadata.Builder()
+                .withFilePath(fileElement.get("filePath").asText())
+                .withCreateDate(LocalDateTime.parse(fileElement.get("createDate").asText()))
+                .withRecordCount(fileElement.get("recordCount").asLong())
+                .withUpdateDate(LocalDateTime.parse(fileElement.get("updateDate").asText()))
+                .build();
+        return fileMetadata;
+    }
+
+    private JsonNode convertObjectMetadata(ObjectMetadata metadata) {
+        ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
+        ObjectNode jsonNode = objectMapper.createObjectNode();
+        jsonNode.put("objectName", metadata.getObjectName());
+        jsonNode.put("createDate", metadata.getCreateDate().toString());
+        jsonNode.put("fileCount", metadata.getFileCount());
+        jsonNode.put("basePath", metadata.getBasePath());
+
+        if (metadata.getUpdateDate() != null) {
+            jsonNode.put("updateDate", metadata.getUpdateDate().toString());
+        }
+
+        if (metadata.getProperties() != null) {
+            ObjectNode propertiesNode = objectMapper.createObjectNode();
+            propertiesNode.putAll(objectMapper.convertValue(metadata.getProperties(), ObjectNode.class));
+            jsonNode.set("properties", propertiesNode);
+        }
+        if (metadata.getFiles() != null) {
+            ArrayNode filesNode = objectMapper.createArrayNode();
+            jsonNode.set("files", filesNode);
+            metadata.getFiles().forEach(fileMetadata -> filesNode.add(this.convertFileMetadata(fileMetadata)));
+        }
+
+        return jsonNode;
+    }
+
+    private ObjectNode convertFileMetadata(FileMetadata fileMetadata) {
+        ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
+        ObjectNode fileNode = objectMapper.createObjectNode();
+        fileNode.put("filePath", fileMetadata.getFilePath());
+        fileNode.put("createDate", fileMetadata.getCreateDate().toString());
+        fileNode.put("updateDate", fileMetadata.getUpdateDate().toString());
+        fileNode.put("recordCount", fileMetadata.getRecordCount());
+        return fileNode;
     }
 
     private File getMetadataFilePath() {

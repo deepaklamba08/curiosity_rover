@@ -3,14 +3,14 @@ package org.curiosity.rover.store;
 import java.util.Iterator;
 import java.util.function.Consumer;
 
-public class QueryResultIterator implements Iterator<QueryResult> {
+public class QueryResultIterator implements Iterator<Record> {
     @Override
     public boolean hasNext() {
         return false;
     }
 
     @Override
-    public QueryResult next() {
+    public Record next() {
         return null;
     }
 
@@ -20,7 +20,7 @@ public class QueryResultIterator implements Iterator<QueryResult> {
     }
 
     @Override
-    public void forEachRemaining(Consumer<? super QueryResult> action) {
+    public void forEachRemaining(Consumer<? super Record> action) {
         Iterator.super.forEachRemaining(action);
     }
 }
