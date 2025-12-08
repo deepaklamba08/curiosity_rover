@@ -82,6 +82,7 @@ public class ObjectStore {
                 .withObjectName(existing.getObjectName())
                 .withUpdateDate(LocalDateTime.now())
                 .withFileMetadata(files)
+                .withDataFormat(existing.getFormat())
                 .build();
         this.updateObjectMetadata(newMetadata);
     }
