@@ -10,6 +10,7 @@ import org.curiosity.rover.store.util.IOUtil;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,7 +26,7 @@ public class ObjectStore {
         this.directory = directory;
     }
 
-    public void registerObject(String name, Map<String, String> properties) {
+    public void registerObject(String name, String basePath, Map<String, String> properties) {
         // Implementation for registering an object in the store
         ObjectMetadata existing = this.readObjectMetadata(name);
         if (existing != null) {
@@ -35,10 +36,15 @@ public class ObjectStore {
                 .withObjectName(name)
                 .withCreateDate(LocalDateTime.now())
                 .withFileCount(0)
+                .withBasePath(basePath)
                 .withProperties(properties)
                 .build();
 
         this.writeObjectMetadata(metadata);
+    }
+
+    public ObjectMetadata getObject(String objectName) {
+        return this.readObjectMetadata(objectName);
     }
 
     public QueryStatement queryObject(String name) {
@@ -47,7 +53,36 @@ public class ObjectStore {
         if (existing == null) {
             throw new IllegalArgumentException("Object not exists- " + name);
         }
-        return new QueryStatement(this, existing);
+        return new QueryStatement(this, existing.getObjectName());
+    }
+
+    public void addFile(String objectName, FileMetadata fileMetadata) {
+        ObjectMetadata existing = this.readObjectMetadata(objectName);
+
+        if (fileMetadata == null) {
+            throw new IllegalArgumentException("File metadata can not be null");
+        }
+        if (existing == null) {
+            throw new IllegalArgumentException("Object not exists- " + objectName);
+        }
+        List<FileMetadata> files;
+        if (existing.getFiles() != null) {
+            files = new ArrayList<>(existing.getFiles());
+        } else {
+            files = new ArrayList<>(1);
+        }
+        files.add(fileMetadata);
+
+        ObjectMetadata newMetadata = new ObjectMetadata.Builder()
+                .withBasePath(existing.getBasePath())
+                .withProperties(existing.getProperties())
+                .withCreateDate(existing.getCreateDate())
+                .withFileCount(files.size())
+                .withObjectName(existing.getObjectName())
+                .withUpdateDate(LocalDateTime.now())
+                .withFileMetadata(files)
+                .build();
+        this.updateObjectMetadata(newMetadata);
     }
 
 
@@ -117,13 +152,17 @@ public class ObjectStore {
     }
 
     private FileMetadata mapFileMetadata(JsonNode fileElement) {
-        FileMetadata fileMetadata = new FileMetadata.Builder()
+        FileMetadata.Builder builder = new FileMetadata.Builder()
                 .withFilePath(fileElement.get("filePath").asText())
                 .withCreateDate(LocalDateTime.parse(fileElement.get("createDate").asText()))
-                .withRecordCount(fileElement.get("recordCount").asLong())
-                .withUpdateDate(LocalDateTime.parse(fileElement.get("updateDate").asText()))
-                .build();
-        return fileMetadata;
+                .withRecordCount(fileElement.get("recordCount").asLong());
+
+        JsonNode updateDate = fileElement.get("updateDate");
+
+        if (updateDate != null && !updateDate.isNull()) {
+            builder = builder.withUpdateDate(LocalDateTime.parse(updateDate.asText()));
+        }
+        return builder.build();
     }
 
     private JsonNode convertObjectMetadata(ObjectMetadata metadata) {
@@ -157,7 +196,9 @@ public class ObjectStore {
         ObjectNode fileNode = objectMapper.createObjectNode();
         fileNode.put("filePath", fileMetadata.getFilePath());
         fileNode.put("createDate", fileMetadata.getCreateDate().toString());
-        fileNode.put("updateDate", fileMetadata.getUpdateDate().toString());
+        if (fileMetadata.getUpdateDate() != null) {
+            fileNode.put("updateDate", fileMetadata.getUpdateDate().toString());
+        }
         fileNode.put("recordCount", fileMetadata.getRecordCount());
         return fileNode;
     }

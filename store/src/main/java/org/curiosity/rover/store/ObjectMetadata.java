@@ -96,6 +96,14 @@ public class ObjectMetadata {
             return this;
         }
 
+        public Builder withFileMetadata(List<FileMetadata> metadataList) {
+            if (this.files == null) {
+                this.files = new ArrayList<>();
+            }
+            this.files.addAll(metadataList);
+            return this;
+        }
+
         public Builder withProperty(String key, String value) {
             if (this.properties == null) {
                 this.properties = new HashMap<>();

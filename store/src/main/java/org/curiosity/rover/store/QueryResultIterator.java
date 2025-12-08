@@ -1,26 +1,36 @@
 package org.curiosity.rover.store;
 
+import org.curiosity.rover.store.record.Record;
+
 import java.util.Iterator;
 import java.util.function.Consumer;
 
 public class QueryResultIterator implements Iterator<Record> {
+
+    private final Iterator<Record> iterator;
+
+    public QueryResultIterator(Iterator<Record> iterator) {
+        this.iterator = iterator;
+    }
+
+
     @Override
     public boolean hasNext() {
-        return false;
+        return iterator.hasNext();
     }
 
     @Override
     public Record next() {
-        return null;
+        return iterator.next();
     }
 
     @Override
     public void remove() {
-        Iterator.super.remove();
+        iterator.remove();
     }
 
     @Override
     public void forEachRemaining(Consumer<? super Record> action) {
-        Iterator.super.forEachRemaining(action);
+        iterator.forEachRemaining(action);
     }
 }

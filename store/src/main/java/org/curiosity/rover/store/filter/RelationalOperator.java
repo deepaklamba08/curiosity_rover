@@ -1,6 +1,6 @@
 package org.curiosity.rover.store.filter;
 
-import org.curiosity.rover.store.Value;
+import org.curiosity.rover.store.value.Value;
 
 public abstract class RelationalOperator implements Operator {
 
