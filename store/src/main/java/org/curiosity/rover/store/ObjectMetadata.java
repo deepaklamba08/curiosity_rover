@@ -10,15 +10,17 @@ public class ObjectMetadata {
 
     private final String objectName;
     private final String basePath;
+    private final DataFormat format;
     private final long fileCount;
     private final LocalDateTime createDate;
     private final LocalDateTime updateDate;
     private final List<FileMetadata> files;
     private final Map<String, String> properties;
 
-    private ObjectMetadata(String objectName, String basePath, long fileCount, LocalDateTime createDate, LocalDateTime updateDate, List<FileMetadata> files, Map<String, String> properties) {
+    private ObjectMetadata(String objectName, String basePath, DataFormat format, long fileCount, LocalDateTime createDate, LocalDateTime updateDate, List<FileMetadata> files, Map<String, String> properties) {
         this.objectName = objectName;
         this.basePath = basePath;
+        this.format = format;
         this.fileCount = fileCount;
         this.createDate = createDate;
         this.updateDate = updateDate;
@@ -54,9 +56,14 @@ public class ObjectMetadata {
         return properties;
     }
 
+    public DataFormat getFormat() {
+        return format;
+    }
+
     public static class Builder {
         private String objectName;
         private String basePath;
+        private DataFormat format;
         private long fileCount;
         private LocalDateTime createDate;
         private LocalDateTime updateDate;
@@ -70,6 +77,11 @@ public class ObjectMetadata {
 
         public Builder withBasePath(String basePath) {
             this.basePath = basePath;
+            return this;
+        }
+
+        public Builder withDataFormat(DataFormat format) {
+            this.format = format;
             return this;
         }
 
@@ -112,7 +124,7 @@ public class ObjectMetadata {
             return this;
         }
 
-        public Builder withProperties(Map<String,String> properties) {
+        public Builder withProperties(Map<String, String> properties) {
             if (this.properties == null) {
                 this.properties = new HashMap<>();
             }
@@ -122,7 +134,7 @@ public class ObjectMetadata {
 
 
         public ObjectMetadata build() {
-            return new ObjectMetadata(this.objectName, this.basePath, this.fileCount, this.createDate, this.updateDate, this.files, this.properties);
+            return new ObjectMetadata(this.objectName, this.basePath, this.format, this.fileCount, this.createDate, this.updateDate, this.files, this.properties);
         }
 
     }

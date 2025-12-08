@@ -24,12 +24,12 @@ public class TestObjectStore {
 
     @BeforeSuite
     public void init() {
-        this.store = new ObjectStore("D:\\dev\\curiosity_rover\\store\\target");
+        this.store = new ObjectStore(TestHelper.getStoreBasePath());
     }
 
     @Test
     public void testRegisterObject() {
-        this.store.registerObject("test_1", "D:\\dev\\curiosity_rover\\store\\target\\", Collections.emptyMap());
+        this.store.registerObject("test_1", TestHelper.getObjectPath("test_data"), Collections.emptyMap());
     }
 
     @Test
@@ -63,6 +63,12 @@ public class TestObjectStore {
         }
 
 
+    }
+
+
+    @Test
+    public void test(){
+        System.out.println(TestHelper.getStoreBasePath());
     }
 
 

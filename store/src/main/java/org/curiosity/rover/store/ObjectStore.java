@@ -34,6 +34,7 @@ public class ObjectStore {
         }
         ObjectMetadata metadata = new ObjectMetadata.Builder()
                 .withObjectName(name)
+                .withDataFormat(DataFormat.JSON)
                 .withCreateDate(LocalDateTime.now())
                 .withFileCount(0)
                 .withBasePath(basePath)
@@ -121,7 +122,8 @@ public class ObjectStore {
         ObjectMetadata.Builder builder = new ObjectMetadata.Builder()
                 .withObjectName(element.get("objectName").asText())
                 .withFileCount(element.get("fileCount").asInt())
-                .withBasePath(element.get("basePath").asText());
+                .withBasePath(element.get("basePath").asText())
+                .withDataFormat(DataFormat.getDataFormat(element.get("format").asText()));
 
         JsonNode createDate = element.get("createDate");
         if (createDate != null) {
@@ -172,6 +174,7 @@ public class ObjectStore {
         jsonNode.put("createDate", metadata.getCreateDate().toString());
         jsonNode.put("fileCount", metadata.getFileCount());
         jsonNode.put("basePath", metadata.getBasePath());
+        jsonNode.put("format", metadata.getFormat().getFormatName());
 
         if (metadata.getUpdateDate() != null) {
             jsonNode.put("updateDate", metadata.getUpdateDate().toString());

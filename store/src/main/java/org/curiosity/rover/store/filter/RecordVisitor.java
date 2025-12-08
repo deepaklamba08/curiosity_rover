@@ -1,6 +1,5 @@
 package org.curiosity.rover.store.filter;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.curiosity.rover.store.record.Record;
 import org.curiosity.rover.store.value.Value;
 
