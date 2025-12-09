@@ -11,6 +11,7 @@ import org.curiosity.rover.store.record.Record;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -72,6 +73,19 @@ public class QueryStatement {
                 .build();
         this.store.addFile(this.objectName, fileMetadata);
 
+    }
+
+    public void importFile(String filePath) {
+        ObjectMetadata metadata = this.store.getObject(this.objectName);
+        DataReader reader = DataReaderFactory.getDataReader(metadata.getFormat());
+
+        Collection<Record> records = reader.readData(new File(filePath));
+        FileMetadata fileMetadata = new FileMetadata.Builder()
+                .withFilePath(filePath)
+                .withRecordCount(records.size())
+                .withCreateDate(LocalDateTime.now())
+                .build();
+        this.store.addFile(this.objectName, fileMetadata);
     }
 
 
