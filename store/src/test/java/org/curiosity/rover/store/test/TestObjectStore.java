@@ -61,15 +61,11 @@ public class TestObjectStore {
             Record record = result.next();
             System.out.println(record);
         }
-
-
     }
-
 
     @Test
-    public void test(){
-        System.out.println(TestHelper.getStoreBasePath());
+    public void testImportFile() {
+        QueryStatement statement = this.store.queryObject("test_1");
+        statement.importFile("E:\\work\\hawkins-lab\\stranger\\stranger-store\\src\\main\\resources\\repository\\json\\app_config.json");
     }
-
-
 }

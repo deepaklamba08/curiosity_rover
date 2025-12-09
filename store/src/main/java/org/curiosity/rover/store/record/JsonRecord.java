@@ -60,6 +60,8 @@ public class JsonRecord implements Record {
             return Values.stringValue(node.asText());
         } else if (node.isInt()) {
             return Values.intValue(node.asInt());
+        } else if (node.isLong()) {
+            return Values.longValue(node.asLong());
         } else if (node.isBoolean()) {
             return Values.booleanValue(node.asBoolean());
         } else if (node.isArray()) {

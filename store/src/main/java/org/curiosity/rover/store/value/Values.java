@@ -11,6 +11,9 @@ public class Values {
     public static Value intValue(int value) {
         return new IntegerValue(value);
     }
+    public static Value longValue(long value) {
+        return new LongValue(value);
+    }
 
     public static Value booleanValue(boolean value) {
         return new BooleanValue(value);
