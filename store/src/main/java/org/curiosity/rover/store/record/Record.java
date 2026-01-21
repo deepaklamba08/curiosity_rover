@@ -7,9 +7,11 @@ import java.util.Map;
 
 public interface Record {
 
-    public Map<String, Value> getAll();
+     Map<String, Value> getAll();
 
-    public List<String> fieldNames();
+     List<String> fieldNames();
 
-    public Value getValue(String field);
+     Value getValue(String field);
+
+     boolean hasField(String field);
 }

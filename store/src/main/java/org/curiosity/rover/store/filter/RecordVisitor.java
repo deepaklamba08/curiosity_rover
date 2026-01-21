@@ -33,7 +33,9 @@ public class RecordVisitor implements Visitor {
     private RecordExpression parseRelationalOperator(RelationalOperator operator) {
         String key = operator.getKey();
         Value value = operator.getValue();
-        Predicate<Record> predicate = (record -> compareValues(record.getValue(key), value, RelationalOperator.Eq.class));
+        Predicate<Record> predicate = (record ->
+                record.hasField(key) &&
+                        compareValues(record.getValue(key), value, operator.getClass()));
         return new RecordExpression(predicate);
     }
 

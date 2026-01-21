@@ -20,9 +20,13 @@ public class IOUtil {
         try (InputStream inputStream = Files.newInputStream(filePath.toPath())) {
             List<T> elements = new ArrayList<>();
             JsonNode jsonNode = DataUtil.OBJECT_MAPPER.readTree(inputStream);
-            jsonNode.elements().forEachRemaining(element -> {
-                elements.add(mapper.apply(element));
-            });
+            if(jsonNode.isArray()){
+                jsonNode.elements().forEachRemaining(element -> {
+                    elements.add(mapper.apply(element));
+                });
+            }else{
+                elements.add(mapper.apply(jsonNode));
+            }
             return elements;
         } catch (IOException e) {
             throw new RuntimeException(e);

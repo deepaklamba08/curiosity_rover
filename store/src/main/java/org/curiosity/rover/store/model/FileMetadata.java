@@ -12,9 +12,9 @@ public class FileMetadata {
     private final LocalDateTime updateDate;
     private final String createdBy;
     private final boolean isCompact;
-    private final List<PartitionDetail> partitionDetails;
+    private final PartitionSet partition;
 
-    public FileMetadata(String fileName, String filePath, long recordCount, LocalDateTime createDate, LocalDateTime updateDate, String createdBy, boolean isCompact, List<PartitionDetail> partitionDetails) {
+    public FileMetadata(String fileName, String filePath, long recordCount, LocalDateTime createDate, LocalDateTime updateDate, String createdBy, boolean isCompact, PartitionSet partition) {
         this.fileName = fileName;
         this.filePath = filePath;
         this.recordCount = recordCount;
@@ -22,7 +22,7 @@ public class FileMetadata {
         this.updateDate = updateDate;
         this.createdBy = createdBy;
         this.isCompact = isCompact;
-        this.partitionDetails = partitionDetails;
+        this.partition = partition;
     }
 
     public String getFileName() {
@@ -37,8 +37,8 @@ public class FileMetadata {
         return isCompact;
     }
 
-    public List<PartitionDetail> getPartitionDetails() {
-        return partitionDetails;
+    public PartitionSet getPartition() {
+        return partition;
     }
 
     public String getFilePath() {
@@ -65,10 +65,10 @@ public class FileMetadata {
         private LocalDateTime updateDate;
         private String createdBy;
         private boolean isCompact;
-        private List<PartitionDetail> partitionDetails;
+        private PartitionSet partition;
 
         public Builder withFileName(String fileName) {
-            this.filePath = fileName;
+            this.fileName = fileName;
             return this;
         }
 
@@ -93,7 +93,7 @@ public class FileMetadata {
         }
 
         public Builder withCreatedBy(String createdBy) {
-            this.filePath = createdBy;
+            this.createdBy = createdBy;
             return this;
         }
 
@@ -102,17 +102,14 @@ public class FileMetadata {
             return this;
         }
 
-        public Builder withPartitionDetail(PartitionDetail partitionDetail) {
-            if (this.partitionDetails == null) {
-                this.partitionDetails = new ArrayList<>();
-            }
-            this.partitionDetails.add(partitionDetail);
+        public Builder withPartition(PartitionSet partition) {
+            this.partition=partition;
             return this;
         }
 
         public FileMetadata build() {
             return new FileMetadata(
-                    this.fileName, this.filePath, this.recordCount, this.createDate, this.updateDate, this.createdBy, this.isCompact, this.partitionDetails
+                    this.fileName, this.filePath, this.recordCount, this.createDate, this.updateDate, this.createdBy, this.isCompact, this.partition
             );
         }
     }

@@ -33,6 +33,11 @@ public class JsonRecord implements Record {
         return this.valueMap.get(field);
     }
 
+    @Override
+    public boolean hasField(String field) {
+        return this.valueMap.containsKey(field);
+    }
+
     private Map<String, Value> structureData(JsonNode element) {
         if (element instanceof ObjectNode) {
             Map<String, Value> dataMap = new HashMap<>();

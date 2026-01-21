@@ -1,6 +1,5 @@
 package org.curiosity.rover.store.core;
 
-import org.curiosity.rover.store.filter.RelationalOperator;
 import org.curiosity.rover.store.model.*;
 import org.curiosity.rover.store.util.IOUtil;
 import org.curiosity.rover.store.util.StoreConstants;
@@ -44,6 +43,7 @@ public class ObjectStore {
                 .withFileCount(0)
                 .withStatus(true)
                 .withProperties(properties)
+                .withPartitionMetadata(partitions)
                 .build();
 
         int baseVersion = 0;
@@ -85,38 +85,43 @@ public class ObjectStore {
         return new QueryStatement(this, existing.getObjectName());
     }
 
-    public void addFile(String objectName, FileMetadata fileMetadata) {
-        ObjectMetadata existing = this.readObjectMetadata(objectName);
-
-        if (fileMetadata == null) {
+    public void addFiles(String objectName, List<FileMetadata> files) {
+        if (files == null || files.isEmpty()) {
             throw new IllegalArgumentException("File metadata can not be null");
         }
+        ObjectMetadata existing = this.readObjectMetadata(objectName);
+
         if (existing == null) {
             throw new IllegalArgumentException("Object not exists- " + objectName);
         }
-        List<FileMetadata> files;
-        if (existing.getFiles() != null) {
-            files = new ArrayList<>(existing.getFiles());
-        } else {
-            files = new ArrayList<>(1);
+        List<FileMetadata> existingFiles = existing.getFiles();
+        if (existingFiles == null) {
+            existingFiles = new ArrayList<>(files.size());
         }
-        files.add(fileMetadata);
+        existingFiles.addAll(files);
 
         ObjectMetadata newMetadata = new ObjectMetadata.Builder()
+                .withObjectName(existing.getObjectName())
                 .withBaseLocation(existing.getBaseLocation())
+                .withDataLocation(existing.getDataLocation())
                 .withProperties(existing.getProperties())
                 .withCreateDate(existing.getCreateDate())
-                .withFileCount(files.size())
-                .withObjectName(existing.getObjectName())
+                .withFileCount(existingFiles.size())
                 .withUpdateDate(LocalDateTime.now())
-                .withFileMetadata(files)
+                .withFileMetadata(existingFiles)
                 .withDataFormat(existing.getFormat())
+                .withPartitionMetadata(existing.getPartition())
+                .withStatus(existing.isStatus())
                 .build();
         this.updateObjectMetadata(newMetadata);
     }
 
-    public void rollbackToVersion(String objectName, int version) {
-        if (objectName == null || objectName.isEmpty() || version < 0) {
+    public void addFile(String objectName, FileMetadata fileMetadata) {
+        this.addFiles(objectName, Collections.singletonList(fileMetadata));
+    }
+
+    public void rollbackToVersion(String objectName, int toVersion) {
+        if (objectName == null || objectName.isEmpty() || toVersion < 0) {
             throw new IllegalArgumentException("Invalid object name or version number");
         }
 
@@ -130,7 +135,7 @@ public class ObjectStore {
             throw new IllegalArgumentException("Versions not found for object");
         }
 
-        Optional<Integer> exists = versions.stream().filter(v -> v == version).findAny();
+        Optional<Integer> exists = versions.stream().filter(v -> v == toVersion).findAny();
         if (!exists.isPresent()) {
             throw new IllegalArgumentException("Version not present in available versions");
         }
@@ -139,7 +144,93 @@ public class ObjectStore {
             throw new IllegalArgumentException("Can not rollback only available version");
         }
 
+        this.updateMetadataVersion(toVersion, objectName);
+    }
 
+    public void deleteVersion(String objectName, int deleteVersion) {
+        if (objectName == null || objectName.isEmpty() || deleteVersion < 0) {
+            throw new IllegalArgumentException("Invalid object name or version number");
+        }
+
+        ObjectMetadata objectMetadata = this.getObject(objectName);
+        if (objectMetadata == null) {
+            throw new IllegalArgumentException("Object not exists- " + objectName);
+        }
+
+        List<Integer> versions = this.listAllVersionNumbers(objectName);
+        if (versions == null || versions.isEmpty()) {
+            throw new IllegalArgumentException("Versions not found for object");
+        }
+
+        Optional<Integer> exists = versions.stream().filter(v -> v == deleteVersion).findAny();
+        if (!exists.isPresent()) {
+            throw new IllegalArgumentException("Version not present in available versions");
+        }
+
+        if (versions.size() == 1) {
+            throw new IllegalArgumentException("Can not rollback only available version");
+        }
+
+        int lastVersion = versions.get(versions.size() - 1);
+        if (deleteVersion == lastVersion) {
+            int newVersion = versions.get(versions.size() - 2);
+            this.updateMetadataVersion(newVersion, objectName);
+        }
+        Map<Integer, ObjectMetadata> versionsMap = this.getAllVersions(objectName);
+        ObjectMetadata deleteVerObject = versionsMap.get(deleteVersion);
+        Map<String, FileMetadata> deleteVerFiles = deleteVerObject.getFiles()
+                .stream()
+                .collect(Collectors.toMap(FileMetadata::getFilePath, Function.identity()));
+
+        versions.stream()
+                .filter(v -> v != deleteVersion)
+                .map(version -> versionsMap.get(version))
+                .filter(Objects::nonNull)
+                .filter(objMeta -> objMeta.getFiles() != null && !objMeta.getFiles().isEmpty())
+                .flatMap(objMeta -> objMeta.getFiles().stream())
+                .forEach(file -> {
+                    FileMetadata existingFile = deleteVerFiles.get(file.getFilePath());
+                    if (existingFile != null) {
+                        deleteVerFiles.remove(file.getFilePath());
+                    }
+                });
+        if (!deleteVerFiles.isEmpty()) {
+            deleteVerFiles.values().forEach(fileMetadata -> {
+                File fileLocation = new File(fileMetadata.getFilePath());
+                if (fileLocation.exists()) {
+                    fileLocation.delete();
+                }
+            });
+        }
+        File deleteMetaFile = this.getMetadataFileLocation(objectName, deleteVersion);
+        if (deleteMetaFile.exists()) {
+            deleteMetaFile.delete();
+        }
+    }
+
+    public ObjectMetadata getObjectByVersion(String objectName, int version) {
+        return null;
+    }
+
+    public Map<Integer, ObjectMetadata> getAllVersions(String objectName) {
+        File objectBaseLocation = getObjectBaseLocation(objectName);
+        File[] childFiles = objectBaseLocation.listFiles();
+        if (childFiles == null || childFiles.length == 0) {
+            return null;
+        }
+
+        Map<Integer, ObjectMetadata> map = Arrays.stream(childFiles)
+                .filter(fileLocation -> fileLocation.getName().startsWith(StoreConstants.STORE_FILE_NAME))
+                .collect(Collectors.toMap(fileLocation -> {
+                    String versionNumber = fileLocation.getName().replace(StoreConstants.STORE_FILE_NAME, "")
+                            .replace("_V", "")
+                            .replace(".json", "");
+                    return Integer.parseInt(versionNumber);
+                }, fileLocation -> {
+                    List<ObjectMetadata> metadataList = IOUtil.readFile(fileLocation, MapperUtil::mapObjectMetadata);
+                    return metadataList.get(0);
+                }));
+        return map;
     }
 
 

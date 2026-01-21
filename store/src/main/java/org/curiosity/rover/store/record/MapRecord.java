@@ -1,16 +1,14 @@
 package org.curiosity.rover.store.record;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.curiosity.rover.store.value.Value;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
-public class SimpleRecord implements Record {
+public class MapRecord implements Record {
 
     private final Map<String, Value> value;
 
-    public SimpleRecord(Map<String, Value> value) {
+    public MapRecord(Map<String, Value> value) {
         this.value = value;
     }
 
@@ -28,5 +26,10 @@ public class SimpleRecord implements Record {
     @Override
     public Value getValue(String field) {
         return this.value.get(field);
+    }
+
+    @Override
+    public boolean hasField(String field) {
+        return this.value.containsKey(field);
     }
 }

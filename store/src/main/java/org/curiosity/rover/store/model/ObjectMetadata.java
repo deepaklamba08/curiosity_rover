@@ -36,6 +36,10 @@ public class ObjectMetadata {
         this.files = files;
     }
 
+    public boolean isPartitioned() {
+        return this.partition != null && !this.partition.isEmpty();
+    }
+
     public String getObjectName() {
         return objectName;
     }

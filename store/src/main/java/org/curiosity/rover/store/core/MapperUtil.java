@@ -8,12 +8,14 @@ import org.curiosity.rover.store.model.*;
 import org.curiosity.rover.store.util.DataUtil;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class MapperUtil {
 
-     static JsonNode convertVersionMetadata(VersionMetadata versionMetadata) {
+    static JsonNode convertVersionMetadata(VersionMetadata versionMetadata) {
         ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
         ObjectNode jsonNode = objectMapper.createObjectNode();
         jsonNode.put("version", versionMetadata.getVersion());
@@ -22,7 +24,7 @@ public final class MapperUtil {
         return jsonNode;
     }
 
-     static  VersionMetadata mapVersionMetadata(JsonNode element) {
+    static VersionMetadata mapVersionMetadata(JsonNode element) {
         return new VersionMetadata.Builder()
                 .withVersion(element.get("version").asInt())
                 .withCreateDate(LocalDateTime.parse(element.get("create_ts").asText()))
@@ -30,18 +32,21 @@ public final class MapperUtil {
 
     }
 
-     static  ObjectMetadata mapObjectMetadata(JsonNode element) {
+    static ObjectMetadata mapObjectMetadata(JsonNode element) {
         ObjectMetadata.Builder builder = new ObjectMetadata.Builder()
-                .withObjectName(element.get("objectName").asText())
-                .withFileCount(element.get("fileCount").asInt())
-                .withBaseLocation(element.get("basePath").asText())
-                .withDataFormat(DataFormat.getDataFormat(element.get("format").asText()));
+                .withObjectName(element.get("object_name").asText())
+                .withFileCount(element.get("file_count").asInt())
+                .withBaseLocation(element.get("base_location").asText())
+                .withDataLocation(element.get("data_location").asText())
+                .withStatus(element.get("status").booleanValue())
+                .withCreatedBy(element.get("created_by").asText())
+                .withDataFormat(DataFormat.getDataFormat(element.get("file_format").asText()));
 
-        JsonNode createDate = element.get("createDate");
+        JsonNode createDate = element.get("create_date");
         if (createDate != null) {
             builder.withCreateDate(LocalDateTime.parse(createDate.asText()));
         }
-        JsonNode updateDate = element.get("updateDate");
+        JsonNode updateDate = element.get("update_date");
         if (updateDate != null) {
             builder.withUpdateDate(LocalDateTime.parse(updateDate.asText()));
         }
@@ -61,27 +66,26 @@ public final class MapperUtil {
             });
             builder.withFileCount(fileCount.get());
         }
-
-        return builder.build();
-    }
-
-     static FileMetadata mapFileMetadata(JsonNode fileElement) {
-        FileMetadata.Builder builder = new FileMetadata.Builder()
-                .withFilePath(fileElement.get("filePath").asText())
-                .withCreateDate(LocalDateTime.parse(fileElement.get("createDate").asText()))
-                .withRecordCount(fileElement.get("recordCount").asLong());
-
-        JsonNode updateDate = fileElement.get("updateDate");
-
-        if (updateDate != null && !updateDate.isNull()) {
-            builder = builder.withUpdateDate(LocalDateTime.parse(updateDate.asText()));
+        JsonNode partitions = element.get("partition");
+        if (partitions != null) {
+            partitions.elements().forEachRemaining(partitionElement -> {
+               builder.withPartitionMetadata(MapperUtil.mapPartitionMetadata(partitionElement));
+            });
         }
+
         return builder.build();
     }
 
-     static  JsonNode convertObjectMetadata(ObjectMetadata metadata) {
-        ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
+    private static PartitionMetadata mapPartitionMetadata(JsonNode partitionElement) {
+        return new PartitionMetadata.Builder()
+                .withLevel(partitionElement.get("level").asInt())
+                .withColumn(partitionElement.get("column").asText())
+                .build();
+    }
 
+
+    static JsonNode convertObjectMetadata(ObjectMetadata metadata) {
+        ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
 
         ObjectNode jsonNode = objectMapper.createObjectNode();
         jsonNode.put("object_name", metadata.getObjectName());
@@ -93,7 +97,7 @@ public final class MapperUtil {
         jsonNode.put("data_location", metadata.getDataLocation());
 
         if (metadata.getUpdateDate() != null) {
-            jsonNode.put("updateDate", metadata.getUpdateDate().toString());
+            jsonNode.put("update_date", metadata.getUpdateDate().toString());
         }
         jsonNode.put("status", metadata.isStatus());
         if (metadata.getProperties() != null) {
@@ -108,7 +112,7 @@ public final class MapperUtil {
         }
         if (metadata.getFiles() != null) {
             ArrayNode filesNode = objectMapper.createArrayNode();
-            jsonNode.set("partition", filesNode);
+            jsonNode.set("files", filesNode);
             metadata.getFiles().forEach(fileMetadata -> filesNode.add(MapperUtil.convertFileMetadata(fileMetadata)));
         }
 
@@ -116,7 +120,7 @@ public final class MapperUtil {
         return jsonNode;
     }
 
-     static  ObjectNode convertPartitionMetadata(PartitionMetadata pm) {
+    static ObjectNode convertPartitionMetadata(PartitionMetadata pm) {
         ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
         ObjectNode partitionNode = objectMapper.createObjectNode();
         partitionNode.put("level", pm.getLevel());
@@ -124,7 +128,7 @@ public final class MapperUtil {
         return partitionNode;
     }
 
-     static  ObjectNode convertFileMetadata(FileMetadata fileMetadata) {
+    static ObjectNode convertFileMetadata(FileMetadata fileMetadata) {
         ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
         ObjectNode fileNode = objectMapper.createObjectNode();
         fileNode.put("file_name", fileMetadata.getFileName());
@@ -136,16 +140,44 @@ public final class MapperUtil {
         if (fileMetadata.getUpdateDate() != null) {
             fileNode.put("update_date", fileMetadata.getUpdateDate().toString());
         }
-        if (fileMetadata.getPartitionDetails() != null) {
+        if (fileMetadata.getPartition() != null) {
             ArrayNode partitionNode = objectMapper.createArrayNode();
             fileNode.set("partition", partitionNode);
-            fileMetadata.getPartitionDetails().forEach(pm -> partitionNode.add(MapperUtil.convertPartitionDetail(pm)));
+            fileMetadata.getPartition().getPartitions().forEach(pm -> partitionNode.add(MapperUtil.convertPartitionDetail(pm)));
 
         }
         return fileNode;
     }
 
-     static  ObjectNode convertPartitionDetail(PartitionDetail pm) {
+    static FileMetadata mapFileMetadata(JsonNode fileElement) {
+        FileMetadata.Builder builder = new FileMetadata.Builder()
+                .withFileName(fileElement.get("file_name").asText())
+                .withFilePath(fileElement.get("file_path").asText())
+                .withRecordCount(fileElement.get("record_count").asInt())
+                .withCreateDate(LocalDateTime.parse(fileElement.get("create_date").asText()))
+                .withCreatedBy(fileElement.get("created_by").asText())
+                .makeCompact(fileElement.get("is_compact").asBoolean());
+
+        JsonNode updateDate = fileElement.get("update_date");
+
+        if (updateDate != null && !updateDate.isNull()) {
+            builder = builder.withUpdateDate(LocalDateTime.parse(updateDate.asText()));
+        }
+        JsonNode partitions = fileElement.get("partition");
+        if(partitions != null){
+            List<PartitionDetail> detailList=new ArrayList<>();
+            partitions.elements().forEachRemaining(partitionElement ->
+                    detailList.add(new PartitionDetail(
+                        MapperUtil.mapPartitionMetadata(partitionElement),
+                        partitionElement.get("value").asText()
+                ))
+            );
+            builder.withPartition(new PartitionSet(detailList));
+        }
+        return builder.build();
+    }
+
+    static ObjectNode convertPartitionDetail(PartitionDetail pm) {
         ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
         ObjectNode fileNode = objectMapper.createObjectNode();
         fileNode.put("level", pm.getMetadata().getLevel());
