@@ -1,4 +1,4 @@
-package org.curiosity.rover.store;
+package org.curiosity.rover.store.core;
 
 import org.curiosity.rover.store.record.Record;
 

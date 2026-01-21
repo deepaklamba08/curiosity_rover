@@ -1,4 +1,4 @@
-package org.curiosity.rover.store;
+package org.curiosity.rover.store.model;
 
 public enum DataFormat {
 

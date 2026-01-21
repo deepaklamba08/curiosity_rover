@@ -38,4 +38,13 @@ public class IOUtil {
             throw new RuntimeException(e);
         }
     }
+
+
+    public static <T> void writeFile(File filePath, Function<T, JsonNode> mapper, T element) {
+        try (OutputStream outputStream = Files.newOutputStream(filePath.toPath())) {
+            DataUtil.OBJECT_MAPPER.writeValue(outputStream, mapper.apply(element));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

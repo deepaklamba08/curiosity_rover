@@ -1,9 +1,9 @@
 package org.curiosity.rover.store.test;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.curiosity.rover.store.ObjectStore;
-import org.curiosity.rover.store.QueryResultIterator;
-import org.curiosity.rover.store.QueryStatement;
+import org.curiosity.rover.store.core.ObjectStore;
+import org.curiosity.rover.store.core.QueryResultIterator;
+import org.curiosity.rover.store.core.QueryStatement;
 import org.curiosity.rover.store.filter.RelationalOperator;
 import org.curiosity.rover.store.record.JsonRecord;
 import org.curiosity.rover.store.record.Record;
@@ -29,7 +29,7 @@ public class TestObjectStore {
 
     @Test
     public void testRegisterObject() {
-        this.store.registerObject("test_1", TestHelper.getObjectPath("test_data"), Collections.emptyMap());
+        this.store.registerObject("test_1", Collections.emptyMap(),null);
     }
 
     @Test
@@ -67,5 +67,10 @@ public class TestObjectStore {
     public void testImportFile() {
         QueryStatement statement = this.store.queryObject("test_1");
         statement.importFile("E:\\work\\hawkins-lab\\stranger\\stranger-store\\src\\main\\resources\\repository\\json\\app_config.json");
+    }
+
+    @Test
+    public void testRollbackToVersion(){
+        this.store.rollbackToVersion("test_1",1);
     }
 }

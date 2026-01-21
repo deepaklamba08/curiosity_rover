@@ -1,4 +1,4 @@
-package org.curiosity.rover.store;
+package org.curiosity.rover.store.core;
 
 import org.curiosity.rover.store.filter.Operator;
 import org.curiosity.rover.store.filter.RecordVisitor;
@@ -6,6 +6,9 @@ import org.curiosity.rover.store.io.DataReader;
 import org.curiosity.rover.store.io.DataReaderFactory;
 import org.curiosity.rover.store.io.DataWriter;
 import org.curiosity.rover.store.io.DataWriterFactory;
+import org.curiosity.rover.store.model.DataFormat;
+import org.curiosity.rover.store.model.FileMetadata;
+import org.curiosity.rover.store.model.ObjectMetadata;
 import org.curiosity.rover.store.record.Record;
 
 import java.io.File;
@@ -91,7 +94,7 @@ public class QueryStatement {
 
     private File getDataFilePath(String fileName) {
         ObjectMetadata metadata = this.store.getObject(this.objectName);
-        File dataFile = new File(metadata.getBasePath(), metadata.getObjectName());
+        File dataFile = new File(metadata.getBaseLocation(), metadata.getObjectName());
         if (!dataFile.exists()) {
             dataFile.mkdirs();
         }

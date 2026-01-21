@@ -1,6 +1,6 @@
 package org.curiosity.rover.store.io;
 
-import org.curiosity.rover.store.DataFormat;
+import org.curiosity.rover.store.model.DataFormat;
 
 public class DataReaderFactory {
 
