@@ -184,7 +184,7 @@ public class ObjectStore {
 
         versions.stream()
                 .filter(v -> v != deleteVersion)
-                .map(version -> versionsMap.get(version))
+                .map(versionsMap::get)
                 .filter(Objects::nonNull)
                 .filter(objMeta -> objMeta.getFiles() != null && !objMeta.getFiles().isEmpty())
                 .flatMap(objMeta -> objMeta.getFiles().stream())
@@ -209,7 +209,22 @@ public class ObjectStore {
     }
 
     public ObjectMetadata getObjectByVersion(String objectName, int version) {
-        return null;
+        File objectBaseLocation = getObjectBaseLocation(objectName);
+        File[] childFiles = objectBaseLocation.listFiles();
+        if (childFiles == null || childFiles.length == 0) {
+            return null;
+        }
+
+        return Arrays.stream(childFiles)
+                .map(File::getName)
+                .filter(fileName -> fileName.startsWith(StoreConstants.STORE_FILE_NAME))
+                .map(ObjectStore::getVersionFromFileName)
+                .map(v -> getMetadataFileLocation(objectName, v))
+                .flatMap(fileLocation -> IOUtil.readFile(fileLocation, MapperUtil::mapObjectMetadata).stream())
+                .findFirst()
+                .get();
+
+
     }
 
     public Map<Integer, ObjectMetadata> getAllVersions(String objectName) {
@@ -219,18 +234,14 @@ public class ObjectStore {
             return null;
         }
 
-        Map<Integer, ObjectMetadata> map = Arrays.stream(childFiles)
+        return Arrays.stream(childFiles)
                 .filter(fileLocation -> fileLocation.getName().startsWith(StoreConstants.STORE_FILE_NAME))
-                .collect(Collectors.toMap(fileLocation -> {
-                    String versionNumber = fileLocation.getName().replace(StoreConstants.STORE_FILE_NAME, "")
-                            .replace("_V", "")
-                            .replace(".json", "");
-                    return Integer.parseInt(versionNumber);
-                }, fileLocation -> {
-                    List<ObjectMetadata> metadataList = IOUtil.readFile(fileLocation, MapperUtil::mapObjectMetadata);
-                    return metadataList.get(0);
-                }));
-        return map;
+                .collect(Collectors.toMap(fileLocation ->
+                                getVersionFromFileName(fileLocation.getName())
+                        , fileLocation -> {
+                            List<ObjectMetadata> metadataList = IOUtil.readFile(fileLocation, MapperUtil::mapObjectMetadata);
+                            return metadataList.get(0);
+                        }));
     }
 
 
@@ -340,12 +351,16 @@ public class ObjectStore {
 
         return Arrays.stream(childFiles).map(File::getName)
                 .filter(name -> name.startsWith(StoreConstants.STORE_FILE_NAME))
-                .map(fileName -> fileName.replace(StoreConstants.STORE_FILE_NAME, "")
-                        .replace("_V", "")
-                        .replace(".json", ""))
-                .map(Integer::parseInt)
+                .map(ObjectStore::getVersionFromFileName)
                 .sorted(Comparator.comparingInt(a -> a))
                 .collect(Collectors.toList());
+    }
+
+    private static int getVersionFromFileName(String fileName) {
+        String versionNum = fileName.replace(StoreConstants.STORE_FILE_NAME, "")
+                .replace("_V", "")
+                .replace(".json", "");
+        return Integer.parseInt(versionNum);
     }
 
     private File getObjectBaseLocation(String objectName) {
