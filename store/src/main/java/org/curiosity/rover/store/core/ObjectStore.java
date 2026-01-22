@@ -219,6 +219,7 @@ public class ObjectStore {
                 .map(File::getName)
                 .filter(fileName -> fileName.startsWith(StoreConstants.STORE_FILE_NAME))
                 .map(ObjectStore::getVersionFromFileName)
+                .filter(v -> v == version)
                 .map(v -> getMetadataFileLocation(objectName, v))
                 .flatMap(fileLocation -> IOUtil.readFile(fileLocation, MapperUtil::mapObjectMetadata).stream())
                 .findFirst()
@@ -245,12 +246,26 @@ public class ObjectStore {
     }
 
 
-    private ObjectMetadata readObjectMetadata(String name) {
-        return this.readObjectMetadata().stream().filter(element -> element.getObjectName().equals(name))
-                .findAny().orElse(null);
+    private ObjectMetadata readObjectMetadata(String objectName) {
+        File[] baseFiles = this.baseDirectory.listFiles();
+        if (baseFiles == null || baseFiles.length == 0) {
+            return null;
+        }
+        Optional<File> objDir = Arrays.stream(baseFiles)
+                .filter(file -> !file.isFile())
+                .filter(file -> file.getName().equals(objectName))
+                .findAny();
+        if (!objDir.isPresent()) {
+            return null;
+        }
+        int currVersion = getCurrentVersion(objectName);
+        File metadataFileLocation = getMetadataFileLocation(objectName, currVersion);
+        List<ObjectMetadata> elements = IOUtil.readFile(metadataFileLocation, MapperUtil::mapObjectMetadata);
+
+        return elements != null && !elements.isEmpty() ? elements.get(0) : null;
     }
 
-    private List<ObjectMetadata> readObjectMetadata() {
+    private List<ObjectMetadata> readAllObjectMetadata() {
         File[] baseFiles = this.baseDirectory.listFiles();
         if (baseFiles == null || baseFiles.length == 0) {
             return Collections.emptyList();
@@ -278,27 +293,21 @@ public class ObjectStore {
     }
 
     private void updateObjectMetadata(ObjectMetadata metadata) {
-        List<ObjectMetadata> existingElements = this.readObjectMetadata().stream()
-                .filter(element -> !element.getObjectName().equals(metadata.getObjectName()))
-                .collect(Collectors.toList());
-        existingElements.add(metadata);
-        this.overwriteMetadata(existingElements);
+        this.overwriteMetadata(metadata);
     }
 
-    private void overwriteMetadata(List<ObjectMetadata> elements) {
-        elements.stream().collect(Collectors.toMap(ObjectMetadata::getObjectName, Function.identity()))
-                .forEach((objectName, objectMetadata) -> {
-                    int beforeVersion = getCurrentVersion(objectName);
-                    int nextVersion = beforeVersion + 1;
-                    File metadataLocation = getMetadataFileLocation(objectName, nextVersion);
-                    IOUtil.writeFile(metadataLocation, MapperUtil::convertObjectMetadata, objectMetadata);
+    private void overwriteMetadata(ObjectMetadata objectMetadata) {
+        String objectName = objectMetadata.getObjectName();
+        int beforeVersion = getCurrentVersion(objectName);
+        int nextVersion = beforeVersion + 1;
+        File metadataLocation = getMetadataFileLocation(objectName, nextVersion);
+        IOUtil.writeFile(metadataLocation, MapperUtil::convertObjectMetadata, objectMetadata);
 
-                    int afterVersion = getCurrentVersion(objectName);
-                    if (beforeVersion != afterVersion) {
-                        throw new IllegalStateException("Version mismatch: " + beforeVersion + " != " + afterVersion);
-                    }
-                    updateMetadataVersion(nextVersion, objectName);
-                });
+        int afterVersion = getCurrentVersion(objectName);
+        if (beforeVersion != afterVersion) {
+            throw new IllegalStateException("Version mismatch: " + beforeVersion + " != " + afterVersion);
+        }
+        updateMetadataVersion(nextVersion, objectName);
     }
 
     private void updateMetadataVersion(int nextVersion, String objectName) {
