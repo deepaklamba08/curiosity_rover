@@ -292,7 +292,7 @@ public class ObjectStore {
         return metadataElements;
     }
 
-    private void updateObjectMetadata(ObjectMetadata metadata) {
+    public void updateObjectMetadata(ObjectMetadata metadata) {
         this.overwriteMetadata(metadata);
     }
 

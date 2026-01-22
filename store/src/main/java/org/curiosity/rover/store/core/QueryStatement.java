@@ -72,27 +72,98 @@ public class QueryStatement {
             Map<PartitionSet, List<Record>> partitionedRecords = this.aggregateRecordsByPartitions(records, partitions);
             files = partitionedRecords.entrySet().stream().map(entry -> {
                 PartitionSet partition = entry.getKey();
-                File dataFilePath = this.generateDataFilePath(metadata.getDataLocation(), metadata.getFormat(), Optional.of(partition));
-                if (!dataFilePath.getParentFile().exists()) {
-                    dataFilePath.getParentFile().mkdirs();
-                }
-                return writeDataToFile(writer, entry.getValue(), dataFilePath, Optional.of(partition));
+                return writeDataToFile(metadata.getDataLocation(), metadata.getFormat(),writer, entry.getValue(), Optional.of(partition), false);
             }).collect(Collectors.toList());
         } else {
-            File dataFilePath = this.generateDataFilePath(metadata.getDataLocation(), metadata.getFormat(), Optional.empty());
-            files = Collections.singletonList(this.writeDataToFile(writer, records, dataFilePath, Optional.empty()));
+            files = Collections.singletonList(this.writeDataToFile(metadata.getDataLocation(), metadata.getFormat(),writer, records,  Optional.empty(), false));
         }
         this.store.addFiles(this.objectName, files);
 
     }
 
-    private FileMetadata writeDataToFile(DataWriter writer, List<Record> records, File location, Optional<PartitionSet> partition) {
-        writer.writeData(location, records);
+    public void runCompaction() {
+        if (objectName == null || objectName.isEmpty()) {
+            throw new IllegalArgumentException("Invalid object name number");
+        }
+
+        ObjectMetadata metadata = this.store.getObject(objectName);
+        if (metadata == null) {
+            throw new IllegalArgumentException("Object not exists- " + objectName);
+        }
+
+        List<FileMetadata> files = metadata.getFiles();
+        if (files == null || files.isEmpty() || files.size() == 1) {
+            return;
+        }
+        DataReader reader = DataReaderFactory.getDataReader(metadata.getFormat());
+        DataWriter writer = DataWriterFactory.getDataWriter(metadata.getFormat());
+
+        List<FileMetadata> compactFiles = new ArrayList<>();
+        if (metadata.isPartitioned()) {
+            Map<PartitionSet, List<FileMetadata>> partitionFileMap = files
+                    .stream()
+                    .collect(Collectors.groupingBy(FileMetadata::getPartition))
+                    .entrySet()
+                    .stream()
+                    .filter(entry -> entry.getValue().size() > 1)
+                    .collect(Collectors.toMap(
+                            entry -> entry.getKey(),
+                            entry -> entry.getValue()
+                    ));
+
+            partitionFileMap.forEach((partitionSet, metadataFiles) -> {
+                List<Record> records = metadataFiles
+                        .stream()
+                        .filter(file -> file.getRecordCount() > 0)
+                        .flatMap(file -> reader.readData(new File(file.getFilePath())).stream())
+                        .collect(Collectors.toList());
+
+                if (records.size() > 0) {
+                    FileMetadata compactFile = writeDataToFile(metadata.getDataLocation(), metadata.getFormat(),writer, records,  Optional.of(partitionSet), true);
+                    compactFiles.add(compactFile);
+                }
+            });
+        } else {
+            List<Record> records = files
+                    .stream()
+                    .filter(file -> file.getRecordCount() > 0)
+                    .flatMap(file -> reader.readData(new File(file.getFilePath())).stream())
+                    .collect(Collectors.toList());
+            if (records.size() > 0) {
+                FileMetadata compactFile = writeDataToFile(metadata.getDataLocation(), metadata.getFormat(), writer, records, Optional.empty(), true);
+                compactFiles.add(compactFile);
+            }
+        }
+
+        ObjectMetadata newMetadata = new ObjectMetadata.Builder()
+                .withObjectName(metadata.getObjectName())
+                .withBaseLocation(metadata.getBaseLocation())
+                .withDataLocation(metadata.getDataLocation())
+                .withProperties(metadata.getProperties())
+                .withCreateDate(metadata.getCreateDate())
+                .withFileCount(compactFiles.size())
+                .withUpdateDate(LocalDateTime.now())
+                .withFileMetadata(compactFiles)
+                .withDataFormat(metadata.getFormat())
+                .withPartitionMetadata(metadata.getPartition())
+                .withStatus(metadata.isStatus())
+                .build();
+
+        this.store.updateObjectMetadata(newMetadata);
+
+    }
+
+    private FileMetadata writeDataToFile(String dataDirLocation, DataFormat format, DataWriter writer, List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
+        File dataFilePath = this.generateDataFilePath(dataDirLocation, format, partition, isCompact);
+        if (!dataFilePath.getParentFile().exists()) {
+            dataFilePath.getParentFile().mkdirs();
+        }
+        writer.writeData(dataFilePath, records);
         FileMetadata.Builder builder = new FileMetadata.Builder()
-                .withFileName(location.getName())
+                .withFileName(dataFilePath.getName())
                 .withCreateDate(LocalDateTime.now())
-                .makeCompact(false)
-                .withFilePath(location.getAbsolutePath())
+                .makeCompact(isCompact)
+                .withFilePath(dataFilePath.getAbsolutePath())
                 .withCreatedBy("system")
                 .withRecordCount(records.size());
         if (partition.isPresent()) {
@@ -146,9 +217,12 @@ public class QueryStatement {
         this.store.addFile(this.objectName, fileMetadata);
     }
 
-    private File generateDataFilePath(String dataDirLocation, DataFormat format, Optional<PartitionSet> partition) {
+    private File generateDataFilePath(String dataDirLocation, DataFormat format, Optional<PartitionSet> partition, boolean isCompact) {
         LocalDateTime dateTime = LocalDateTime.now();
         StringBuilder fileName = new StringBuilder();
+        if (isCompact) {
+            fileName.append("compact_");
+        }
         fileName.append(dateTime.getYear()).append("_")
                 .append(dateTime.getMonthValue()).append("_")
                 .append(dateTime.getDayOfMonth()).append("_")

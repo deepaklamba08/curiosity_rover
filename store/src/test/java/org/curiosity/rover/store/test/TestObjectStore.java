@@ -104,4 +104,8 @@ public class TestObjectStore {
     public void testDeleteVersion(){
         this.store.deleteVersion("asset",1);
     }
+    @Test
+    public void testRunCompaction(){
+        this.store.queryObject("asset").runCompaction();
+    }
 }
