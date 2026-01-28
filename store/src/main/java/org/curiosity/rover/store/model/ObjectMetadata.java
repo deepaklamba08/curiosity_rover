@@ -83,6 +83,21 @@ public class ObjectMetadata {
         return properties != null && "true".equalsIgnoreCase(properties.get("enableStats"));
     }
 
+    public boolean batchEnabled() {
+        return properties != null && "true".equalsIgnoreCase(properties.get("batchEnabled"));
+    }
+
+    public int getBatchSize() {
+        if (properties != null && properties.get("batchSize") != null) {
+            try {
+                return Integer.parseInt(properties.get("batchSize"));
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
     public Map<String, String> getProperties() {
         return properties;
     }

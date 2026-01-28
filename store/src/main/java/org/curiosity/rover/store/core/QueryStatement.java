@@ -70,14 +70,13 @@ public class QueryStatement {
         if (metadata.isPartitioned()) {
             List<PartitionMetadata> partitions = metadata.getPartition();
             Map<PartitionSet, List<Record>> partitionedRecords = this.aggregateRecordsByPartitions(records, partitions);
-            files = partitionedRecords.entrySet().stream().map(entry -> {
+            files = partitionedRecords.entrySet().stream().flatMap(entry -> {
                 PartitionSet partition = entry.getKey();
-                return writeDataToFile(metadata, writer, entry.getValue(),
-                        Optional.of(partition), false);
+                return writeDataToFiles(metadata, writer, entry.getValue(),
+                        Optional.of(partition), false).stream();
             }).collect(Collectors.toList());
         } else {
-            files = Collections.singletonList(this.writeDataToFile(metadata,
-                    writer, records, Optional.empty(), false));
+            files = this.writeDataToFiles(metadata, writer, records, Optional.empty(), false);
         }
         this.store.addFiles(this.objectName, files);
 
@@ -120,9 +119,7 @@ public class QueryStatement {
                         .collect(Collectors.toList());
 
                 if (records.size() > 0) {
-                    FileMetadata compactFile = writeDataToFile(metadata, writer,
-                            records, Optional.of(partitionSet), true);
-                    compactFiles.add(compactFile);
+                    compactFiles.addAll(writeDataToFiles(metadata, writer, records, Optional.of(partitionSet), true));
                 }
             });
         } else {
@@ -132,8 +129,8 @@ public class QueryStatement {
                     .flatMap(file -> reader.readData(new File(file.getFilePath())).stream())
                     .collect(Collectors.toList());
             if (records.size() > 0) {
-                FileMetadata compactFile = writeDataToFile(metadata, writer, records, Optional.empty(), true);
-                compactFiles.add(compactFile);
+                List<FileMetadata> compactFils = writeDataToFiles(metadata, writer, records, Optional.empty(), true);
+                compactFiles.addAll(compactFils);
             }
         }
 
@@ -155,8 +152,23 @@ public class QueryStatement {
 
     }
 
+    private List<FileMetadata> writeDataToFiles(ObjectMetadata metadata, DataWriter writer,
+                                                List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
+
+        if (metadata.batchEnabled() && metadata.getBatchSize() > 0) {
+            List<FileMetadata> files = new ArrayList<>();
+            int batchSize = metadata.getBatchSize();
+            for (int i = 0; i < records.size(); i += batchSize) {
+                List<Record> batchRecords = records.subList(i, Math.min(i + batchSize, records.size()));
+                files.addAll(writeDataToFiles(metadata, writer, batchRecords, partition, isCompact));
+            }
+            return files;
+        }
+        return Collections.singletonList(writeDataToFile(metadata, writer, records, partition, isCompact));
+    }
+
     private FileMetadata writeDataToFile(ObjectMetadata metadata, DataWriter writer,
-            List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
+                                         List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
         String dataDirLocation = metadata.getDataLocation();
         DataFormat format = metadata.getFormat();
         File dataFilePath = this.generateDataFilePath(dataDirLocation, format, partition, isCompact);
@@ -185,7 +197,7 @@ public class QueryStatement {
     }
 
     private Map<PartitionSet, List<Record>> aggregateRecordsByPartitions(List<Record> records,
-            List<PartitionMetadata> partitions) {
+                                                                         List<PartitionMetadata> partitions) {
         Map<PartitionSet, List<Record>> aggRecords = new HashMap<>();
         for (Record record : records) {
             PartitionSet partitionSet = this.classifyRecord(record, partitions);
@@ -233,7 +245,7 @@ public class QueryStatement {
     }
 
     private File generateDataFilePath(String dataDirLocation, DataFormat format, Optional<PartitionSet> partition,
-            boolean isCompact) {
+                                      boolean isCompact) {
         LocalDateTime dateTime = LocalDateTime.now();
         StringBuilder fileName = new StringBuilder();
         if (isCompact) {
