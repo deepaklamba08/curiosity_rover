@@ -95,10 +95,11 @@ public class ObjectStore {
             throw new IllegalArgumentException("Object not exists- " + objectName);
         }
         List<FileMetadata> existingFiles = existing.getFiles();
-        if (existingFiles == null) {
-            existingFiles = new ArrayList<>(files.size());
+        List<FileMetadata> newFilesList = new ArrayList<>();
+        if (existingFiles != null) {
+            newFilesList.addAll(existingFiles);
         }
-        existingFiles.addAll(files);
+        newFilesList.addAll(files);
 
         ObjectMetadata newMetadata = new ObjectMetadata.Builder()
                 .withObjectName(existing.getObjectName())
@@ -106,9 +107,9 @@ public class ObjectStore {
                 .withDataLocation(existing.getDataLocation())
                 .withProperties(existing.getProperties())
                 .withCreateDate(existing.getCreateDate())
-                .withFileCount(existingFiles.size())
+                .withFileCount(newFilesList.size())
                 .withUpdateDate(LocalDateTime.now())
-                .withFileMetadata(existingFiles)
+                .withFileMetadata(newFilesList)
                 .withDataFormat(existing.getFormat())
                 .withPartitionMetadata(existing.getPartition())
                 .withStatus(existing.isStatus())
@@ -168,7 +169,7 @@ public class ObjectStore {
         }
 
         if (versions.size() == 1) {
-            throw new IllegalArgumentException("Can not rollback only available version");
+            throw new IllegalArgumentException("Cannot delete only available version");
         }
 
         int lastVersion = versions.get(versions.size() - 1);
@@ -223,8 +224,7 @@ public class ObjectStore {
                 .map(v -> getMetadataFileLocation(objectName, v))
                 .flatMap(fileLocation -> IOUtil.readFile(fileLocation, MapperUtil::mapObjectMetadata).stream())
                 .findFirst()
-                .get();
-
+                .orElse(null);
 
     }
 
@@ -237,14 +237,17 @@ public class ObjectStore {
 
         return Arrays.stream(childFiles)
                 .filter(fileLocation -> fileLocation.getName().startsWith(StoreConstants.STORE_FILE_NAME))
-                .collect(Collectors.toMap(fileLocation ->
-                                getVersionFromFileName(fileLocation.getName())
-                        , fileLocation -> {
-                            List<ObjectMetadata> metadataList = IOUtil.readFile(fileLocation, MapperUtil::mapObjectMetadata);
+                .collect(Collectors.toMap(fileLocation -> getVersionFromFileName(fileLocation.getName()),
+                        fileLocation -> {
+                            List<ObjectMetadata> metadataList = IOUtil.readFile(fileLocation,
+                                    MapperUtil::mapObjectMetadata);
+                            if (metadataList == null || metadataList.isEmpty()) {
+                                throw new IllegalStateException(
+                                        "Metadata file is empty or corrupted: " + fileLocation.getName());
+                            }
                             return metadataList.get(0);
                         }));
     }
-
 
     private ObjectMetadata readObjectMetadata(String objectName) {
         File[] baseFiles = this.baseDirectory.listFiles();
@@ -324,8 +327,7 @@ public class ObjectStore {
                     versionTempLocation.toPath(),
                     versionLocation.toPath(),
                     StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE
-            );
+                    StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

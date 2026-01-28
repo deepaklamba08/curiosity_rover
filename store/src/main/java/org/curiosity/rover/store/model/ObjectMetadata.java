@@ -21,7 +21,9 @@ public class ObjectMetadata {
     private final List<PartitionMetadata> partition;
     private final List<FileMetadata> files;
 
-    public ObjectMetadata(String objectName, LocalDateTime createDate, long fileCount, String createdBy, DataFormat format, String baseLocation, String dataLocation, LocalDateTime updateDate, boolean status, Map<String, String> properties, List<PartitionMetadata> partition, List<FileMetadata> files) {
+    private ObjectMetadata(String objectName, LocalDateTime createDate, long fileCount, String createdBy,
+            DataFormat format, String baseLocation, String dataLocation, LocalDateTime updateDate, boolean status,
+            Map<String, String> properties, List<PartitionMetadata> partition, List<FileMetadata> files) {
         this.objectName = objectName;
         this.createDate = createDate;
         this.fileCount = fileCount;
@@ -117,7 +119,7 @@ public class ObjectMetadata {
             return this;
         }
 
-        public Builder withCreatedBy(String objectName) {
+        public Builder withCreatedBy(String createdBy) {
             this.createdBy = createdBy;
             return this;
         }
@@ -141,6 +143,7 @@ public class ObjectMetadata {
             this.updateDate = updateDate;
             return this;
         }
+
         public Builder withStatus(boolean status) {
             this.status = status;
             return this;
@@ -194,9 +197,10 @@ public class ObjectMetadata {
             return this;
         }
 
-
         public ObjectMetadata build() {
-            return new ObjectMetadata(this.objectName, this.createDate, this.fileCount, this.createdBy, this.format, this.baseLocation, this.dataLocation, this.updateDate, this.status, this.properties, this.partition, this.files);
+            return new ObjectMetadata(this.objectName, this.createDate, this.fileCount, this.createdBy, this.format,
+                    this.baseLocation, this.dataLocation, this.updateDate, this.status, this.properties, this.partition,
+                    this.files);
         }
 
     }

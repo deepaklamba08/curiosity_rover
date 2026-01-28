@@ -28,7 +28,6 @@ public class QueryStatement {
     private final RecordVisitor visitor;
     private final FileVisitor fileVisitor;
 
-
     public QueryStatement(ObjectStore store, String objectName) {
         this.objectName = objectName;
         this.store = store;
@@ -72,10 +71,12 @@ public class QueryStatement {
             Map<PartitionSet, List<Record>> partitionedRecords = this.aggregateRecordsByPartitions(records, partitions);
             files = partitionedRecords.entrySet().stream().map(entry -> {
                 PartitionSet partition = entry.getKey();
-                return writeDataToFile(metadata.getDataLocation(), metadata.getFormat(),writer, entry.getValue(), Optional.of(partition), false);
+                return writeDataToFile(metadata.getDataLocation(), metadata.getFormat(), writer, entry.getValue(),
+                        Optional.of(partition), false);
             }).collect(Collectors.toList());
         } else {
-            files = Collections.singletonList(this.writeDataToFile(metadata.getDataLocation(), metadata.getFormat(),writer, records,  Optional.empty(), false));
+            files = Collections.singletonList(this.writeDataToFile(metadata.getDataLocation(), metadata.getFormat(),
+                    writer, records, Optional.empty(), false));
         }
         this.store.addFiles(this.objectName, files);
 
@@ -83,7 +84,7 @@ public class QueryStatement {
 
     public void runCompaction() {
         if (objectName == null || objectName.isEmpty()) {
-            throw new IllegalArgumentException("Invalid object name number");
+            throw new IllegalArgumentException("Invalid object name");
         }
 
         ObjectMetadata metadata = this.store.getObject(objectName);
@@ -108,8 +109,7 @@ public class QueryStatement {
                     .filter(entry -> entry.getValue().size() > 1)
                     .collect(Collectors.toMap(
                             entry -> entry.getKey(),
-                            entry -> entry.getValue()
-                    ));
+                            entry -> entry.getValue()));
 
             partitionFileMap.forEach((partitionSet, metadataFiles) -> {
                 List<Record> records = metadataFiles
@@ -119,7 +119,8 @@ public class QueryStatement {
                         .collect(Collectors.toList());
 
                 if (records.size() > 0) {
-                    FileMetadata compactFile = writeDataToFile(metadata.getDataLocation(), metadata.getFormat(),writer, records,  Optional.of(partitionSet), true);
+                    FileMetadata compactFile = writeDataToFile(metadata.getDataLocation(), metadata.getFormat(), writer,
+                            records, Optional.of(partitionSet), true);
                     compactFiles.add(compactFile);
                 }
             });
@@ -130,7 +131,8 @@ public class QueryStatement {
                     .flatMap(file -> reader.readData(new File(file.getFilePath())).stream())
                     .collect(Collectors.toList());
             if (records.size() > 0) {
-                FileMetadata compactFile = writeDataToFile(metadata.getDataLocation(), metadata.getFormat(), writer, records, Optional.empty(), true);
+                FileMetadata compactFile = writeDataToFile(metadata.getDataLocation(), metadata.getFormat(), writer,
+                        records, Optional.empty(), true);
                 compactFiles.add(compactFile);
             }
         }
@@ -153,7 +155,8 @@ public class QueryStatement {
 
     }
 
-    private FileMetadata writeDataToFile(String dataDirLocation, DataFormat format, DataWriter writer, List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
+    private FileMetadata writeDataToFile(String dataDirLocation, DataFormat format, DataWriter writer,
+            List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
         File dataFilePath = this.generateDataFilePath(dataDirLocation, format, partition, isCompact);
         if (!dataFilePath.getParentFile().exists()) {
             dataFilePath.getParentFile().mkdirs();
@@ -173,7 +176,8 @@ public class QueryStatement {
         return builder.build();
     }
 
-    private Map<PartitionSet, List<Record>> aggregateRecordsByPartitions(List<Record> records, List<PartitionMetadata> partitions) {
+    private Map<PartitionSet, List<Record>> aggregateRecordsByPartitions(List<Record> records,
+            List<PartitionMetadata> partitions) {
         Map<PartitionSet, List<Record>> aggRecords = new HashMap<>();
         for (Record record : records) {
             PartitionSet partitionSet = this.classifyRecord(record, partitions);
@@ -206,6 +210,9 @@ public class QueryStatement {
 
     public void importFile(String filePath) {
         ObjectMetadata metadata = this.store.getObject(this.objectName);
+        if (metadata == null) {
+            throw new IllegalStateException("Object " + this.objectName + " does not exist in the store.");
+        }
         DataReader reader = DataReaderFactory.getDataReader(metadata.getFormat());
 
         Collection<Record> records = reader.readData(new File(filePath));
@@ -217,7 +224,8 @@ public class QueryStatement {
         this.store.addFile(this.objectName, fileMetadata);
     }
 
-    private File generateDataFilePath(String dataDirLocation, DataFormat format, Optional<PartitionSet> partition, boolean isCompact) {
+    private File generateDataFilePath(String dataDirLocation, DataFormat format, Optional<PartitionSet> partition,
+            boolean isCompact) {
         LocalDateTime dateTime = LocalDateTime.now();
         StringBuilder fileName = new StringBuilder();
         if (isCompact) {
@@ -228,7 +236,8 @@ public class QueryStatement {
                 .append(dateTime.getDayOfMonth()).append("_")
                 .append(dateTime.getHour()).append("_")
                 .append(dateTime.getMinute()).append("_")
-                .append(dateTime.getSecond())
+                .append(dateTime.getSecond()).append("_")
+                .append(dateTime.getNano())
                 .append(".").append(format.getFormatName());
 
         if (partition.isPresent()) {
@@ -272,11 +281,9 @@ public class QueryStatement {
         DataReader reader = DataReaderFactory.getDataReader(metadata.getFormat());
         return selectedFiles
                 .stream()
-                .map(file -> file.getFilePath())
-                .collect(Collectors.toSet())
-                .stream()
-                .flatMap(path -> reader.readData(new File(path)).stream()
-                );
+                .map(FileMetadata::getFilePath)
+                .distinct()
+                .flatMap(path -> reader.readData(new File(path)).stream());
     }
 
     private List<FileMetadata> filterFiles(Operator operator, List<FileMetadata> files) {
