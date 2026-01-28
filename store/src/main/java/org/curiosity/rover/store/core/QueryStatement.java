@@ -8,8 +8,8 @@ import org.curiosity.rover.store.io.DataReaderFactory;
 import org.curiosity.rover.store.io.DataWriter;
 import org.curiosity.rover.store.io.DataWriterFactory;
 import org.curiosity.rover.store.model.*;
-import org.curiosity.rover.store.stats.FieldStatsCalculator;
 import org.curiosity.rover.store.record.Record;
+import org.curiosity.rover.store.stats.FieldStatsCalculator;
 import org.curiosity.rover.store.value.IntegerValue;
 import org.curiosity.rover.store.value.StringValue;
 import org.curiosity.rover.store.value.Value;
@@ -36,26 +36,16 @@ public class QueryStatement {
         this.fileVisitor = new FileVisitor();
     }
 
-    public QueryResultIterator executeQuery() {
-        Iterator<Record> elements = this.readFiles(Optional.empty()).iterator();
-        return new QueryResultIterator(elements);
+
+    public QueryResult executeQuery() {
+        return this.createResultIterator(Optional.empty());
     }
 
-    public QueryResultIterator executeQuery(Operator filter) {
-        Predicate<Record> predicate = this.visitor.visit(filter).getPredicate();
-        Iterator<Record> elements = this.readFiles(Optional.of(filter)).filter(predicate).iterator();
-        return new QueryResultIterator(elements);
+    public QueryResult executeQuery(Operator filter) {
+        return this.createResultIterator(Optional.of(filter));
     }
 
-    public ResultIteratorV2 executeQueryV2() {
-        return this.createResultIteratorV2(Optional.empty());
-    }
-
-    public ResultIteratorV2 executeQueryV2(Operator filter) {
-        return this.createResultIteratorV2(Optional.of(filter));
-    }
-
-    private ResultIteratorV2 createResultIteratorV2(Optional<Operator> filter) {
+    private QueryResult createResultIterator(Optional<Operator> filter) {
         ObjectMetadata metadata = this.store.getObject(this.objectName);
         if (metadata == null) {
             throw new IllegalStateException("Object " + this.objectName + " does not exist in the store.");
@@ -71,7 +61,7 @@ public class QueryStatement {
         DataReader reader = DataReaderFactory.getDataReader(metadata.getFormat());
         Predicate<Record> predicate = filter.isPresent() ? this.visitor.visit(filter.get()).getPredicate() : null;
 
-        return new ResultIteratorV2(selectedFiles, reader, predicate);
+        return new QueryResult(selectedFiles, reader, predicate);
     }
 
     public <T> List<T> executeQuery(Function<Record, T> mapper) {

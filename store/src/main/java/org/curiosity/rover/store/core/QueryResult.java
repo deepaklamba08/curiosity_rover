@@ -13,7 +13,7 @@ import java.util.function.Predicate;
  * A ResultIterator that reads data files lazily and caches results locally.
  * Files are read sequentially only when needed to satisfy hasNext() or next().
  */
-public class ResultIteratorV2 implements ResultIterator {
+public class QueryResult implements ResultIterator {
 
     private final List<FileMetadata> files;
     private final DataReader reader;
@@ -24,7 +24,7 @@ public class ResultIteratorV2 implements ResultIterator {
     private Iterator<Record> currentFileIterator = null;
     private Record nextRecord = null;
 
-    public ResultIteratorV2(List<FileMetadata> files, DataReader reader, Predicate<Record> filter) {
+    public QueryResult(List<FileMetadata> files, DataReader reader, Predicate<Record> filter) {
         this.files = files != null ? files : Collections.emptyList();
         this.reader = reader;
         this.filter = filter;
@@ -75,14 +75,5 @@ public class ResultIteratorV2 implements ResultIterator {
         while (hasNext()) {
             action.accept(next());
         }
-    }
-
-    /**
-     * Returns the list of records that have been returned by this iterator so far.
-     * 
-     * @return Unmodifiable list of cached records.
-     */
-    public List<Record> getCache() {
-        return Collections.unmodifiableList(cache);
     }
 }

@@ -2,15 +2,15 @@ package org.curiosity.rover.store.test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.curiosity.rover.store.core.ObjectStore;
-import org.curiosity.rover.store.core.QueryResultIterator;
+import org.curiosity.rover.store.core.QueryResult;
 import org.curiosity.rover.store.core.QueryStatement;
 import org.curiosity.rover.store.filter.LogicalOperator;
 import org.curiosity.rover.store.filter.Operator;
 import org.curiosity.rover.store.filter.RelationalOperator;
 import org.curiosity.rover.store.model.PartitionMetadata;
 import org.curiosity.rover.store.record.JsonRecord;
-import org.curiosity.rover.store.record.Record;
 import org.curiosity.rover.store.record.MapRecord;
+import org.curiosity.rover.store.record.Record;
 import org.curiosity.rover.store.util.DataUtil;
 import org.curiosity.rover.store.value.Value;
 import org.curiosity.rover.store.value.Values;
@@ -83,7 +83,7 @@ public class TestObjectStore {
         Operator operator = new LogicalOperator.Or(
                 new RelationalOperator.Eq("region", Values.stringValue("us")),
                 new RelationalOperator.Eq("type", Values.stringValue("text")));
-        QueryResultIterator result = statement.executeQuery(operator);
+        QueryResult result = statement.executeQuery(operator);
         while (result.hasNext()) {
             Record record = result.next();
             System.out.println(record);
