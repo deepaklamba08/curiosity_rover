@@ -23,7 +23,8 @@ public class ObjectMetadata {
 
     private ObjectMetadata(String objectName, LocalDateTime createDate, long fileCount, String createdBy,
             DataFormat format, String baseLocation, String dataLocation, LocalDateTime updateDate, boolean status,
-            Map<String, String> properties, List<PartitionMetadata> partition, List<FileMetadata> files) {
+            Map<String, String> properties, List<PartitionMetadata> partition,
+            List<FileMetadata> files) {
         this.objectName = objectName;
         this.createDate = createDate;
         this.fileCount = fileCount;
@@ -76,6 +77,10 @@ public class ObjectMetadata {
 
     public boolean isStatus() {
         return status;
+    }
+
+    public boolean isEnableStats() {
+        return properties != null && "true".equalsIgnoreCase(properties.get("enableStats"));
     }
 
     public Map<String, String> getProperties() {
@@ -199,7 +204,8 @@ public class ObjectMetadata {
 
         public ObjectMetadata build() {
             return new ObjectMetadata(this.objectName, this.createDate, this.fileCount, this.createdBy, this.format,
-                    this.baseLocation, this.dataLocation, this.updateDate, this.status, this.properties, this.partition,
+                    this.baseLocation, this.dataLocation, this.updateDate, this.status,
+                    this.properties, this.partition,
                     this.files);
         }
 

@@ -3,6 +3,8 @@ package org.curiosity.rover.store.model;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class FileMetadata {
     private final String fileName;
@@ -13,8 +15,11 @@ public class FileMetadata {
     private final String createdBy;
     private final boolean isCompact;
     private final PartitionSet partition;
+    private final Map<String, FieldStats> fieldStats;
 
-    public FileMetadata(String fileName, String filePath, long recordCount, LocalDateTime createDate, LocalDateTime updateDate, String createdBy, boolean isCompact, PartitionSet partition) {
+    public FileMetadata(String fileName, String filePath, long recordCount, LocalDateTime createDate,
+            LocalDateTime updateDate, String createdBy, boolean isCompact, PartitionSet partition,
+            Map<String, FieldStats> fieldStats) {
         this.fileName = fileName;
         this.filePath = filePath;
         this.recordCount = recordCount;
@@ -23,6 +28,7 @@ public class FileMetadata {
         this.createdBy = createdBy;
         this.isCompact = isCompact;
         this.partition = partition;
+        this.fieldStats = fieldStats;
     }
 
     public String getFileName() {
@@ -57,6 +63,10 @@ public class FileMetadata {
         return updateDate;
     }
 
+    public Map<String, FieldStats> getFieldStats() {
+        return fieldStats;
+    }
+
     public static class Builder {
         private String fileName;
         private String filePath;
@@ -66,6 +76,7 @@ public class FileMetadata {
         private String createdBy;
         private boolean isCompact;
         private PartitionSet partition;
+        private Map<String, FieldStats> fieldStats;
 
         public Builder withFileName(String fileName) {
             this.fileName = fileName;
@@ -103,14 +114,27 @@ public class FileMetadata {
         }
 
         public Builder withPartition(PartitionSet partition) {
-            this.partition=partition;
+            this.partition = partition;
+            return this;
+        }
+
+        public Builder withFieldStats(Map<String, FieldStats> fieldStats) {
+            this.fieldStats = fieldStats;
+            return this;
+        }
+
+        public Builder withFieldStat(String fieldName, FieldStats stats) {
+            if (this.fieldStats == null) {
+                this.fieldStats = new HashMap<>();
+            }
+            this.fieldStats.put(fieldName, stats);
             return this;
         }
 
         public FileMetadata build() {
             return new FileMetadata(
-                    this.fileName, this.filePath, this.recordCount, this.createDate, this.updateDate, this.createdBy, this.isCompact, this.partition
-            );
+                    this.fileName, this.filePath, this.recordCount, this.createDate, this.updateDate, this.createdBy,
+                    this.isCompact, this.partition, this.fieldStats);
         }
     }
 }

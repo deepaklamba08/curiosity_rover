@@ -8,6 +8,7 @@ import org.curiosity.rover.store.io.DataReaderFactory;
 import org.curiosity.rover.store.io.DataWriter;
 import org.curiosity.rover.store.io.DataWriterFactory;
 import org.curiosity.rover.store.model.*;
+import org.curiosity.rover.store.stats.FieldStatsCalculator;
 import org.curiosity.rover.store.record.Record;
 import org.curiosity.rover.store.value.IntegerValue;
 import org.curiosity.rover.store.value.StringValue;
@@ -71,11 +72,11 @@ public class QueryStatement {
             Map<PartitionSet, List<Record>> partitionedRecords = this.aggregateRecordsByPartitions(records, partitions);
             files = partitionedRecords.entrySet().stream().map(entry -> {
                 PartitionSet partition = entry.getKey();
-                return writeDataToFile(metadata.getDataLocation(), metadata.getFormat(), writer, entry.getValue(),
+                return writeDataToFile(metadata, writer, entry.getValue(),
                         Optional.of(partition), false);
             }).collect(Collectors.toList());
         } else {
-            files = Collections.singletonList(this.writeDataToFile(metadata.getDataLocation(), metadata.getFormat(),
+            files = Collections.singletonList(this.writeDataToFile(metadata,
                     writer, records, Optional.empty(), false));
         }
         this.store.addFiles(this.objectName, files);
@@ -119,7 +120,7 @@ public class QueryStatement {
                         .collect(Collectors.toList());
 
                 if (records.size() > 0) {
-                    FileMetadata compactFile = writeDataToFile(metadata.getDataLocation(), metadata.getFormat(), writer,
+                    FileMetadata compactFile = writeDataToFile(metadata, writer,
                             records, Optional.of(partitionSet), true);
                     compactFiles.add(compactFile);
                 }
@@ -131,8 +132,7 @@ public class QueryStatement {
                     .flatMap(file -> reader.readData(new File(file.getFilePath())).stream())
                     .collect(Collectors.toList());
             if (records.size() > 0) {
-                FileMetadata compactFile = writeDataToFile(metadata.getDataLocation(), metadata.getFormat(), writer,
-                        records, Optional.empty(), true);
+                FileMetadata compactFile = writeDataToFile(metadata, writer, records, Optional.empty(), true);
                 compactFiles.add(compactFile);
             }
         }
@@ -155,8 +155,10 @@ public class QueryStatement {
 
     }
 
-    private FileMetadata writeDataToFile(String dataDirLocation, DataFormat format, DataWriter writer,
+    private FileMetadata writeDataToFile(ObjectMetadata metadata, DataWriter writer,
             List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
+        String dataDirLocation = metadata.getDataLocation();
+        DataFormat format = metadata.getFormat();
         File dataFilePath = this.generateDataFilePath(dataDirLocation, format, partition, isCompact);
         if (!dataFilePath.getParentFile().exists()) {
             dataFilePath.getParentFile().mkdirs();
@@ -171,6 +173,13 @@ public class QueryStatement {
                 .withRecordCount(records.size());
         if (partition.isPresent()) {
             builder.withPartition(partition.get());
+        }
+
+        // Calculate field statistics if enabled
+        if (metadata.isEnableStats() && records != null && !records.isEmpty()) {
+            FieldStatsCalculator calculator = new FieldStatsCalculator();
+            Map<String, FieldStats> fieldStats = calculator.calculateAllStats(records);
+            builder.withFieldStats(fieldStats);
         }
 
         return builder.build();
