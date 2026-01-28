@@ -47,6 +47,33 @@ public class QueryStatement {
         return new QueryResultIterator(elements);
     }
 
+    public ResultIteratorV2 executeQueryV2() {
+        return this.createResultIteratorV2(Optional.empty());
+    }
+
+    public ResultIteratorV2 executeQueryV2(Operator filter) {
+        return this.createResultIteratorV2(Optional.of(filter));
+    }
+
+    private ResultIteratorV2 createResultIteratorV2(Optional<Operator> filter) {
+        ObjectMetadata metadata = this.store.getObject(this.objectName);
+        if (metadata == null) {
+            throw new IllegalStateException("Object " + this.objectName + " does not exist in the store.");
+        }
+
+        List<FileMetadata> selectedFiles;
+        if (metadata.isPartitioned() && filter.isPresent()) {
+            selectedFiles = this.filterFiles(filter.get(), metadata.getFiles());
+        } else {
+            selectedFiles = metadata.getFiles();
+        }
+
+        DataReader reader = DataReaderFactory.getDataReader(metadata.getFormat());
+        Predicate<Record> predicate = filter.isPresent() ? this.visitor.visit(filter.get()).getPredicate() : null;
+
+        return new ResultIteratorV2(selectedFiles, reader, predicate);
+    }
+
     public <T> List<T> executeQuery(Function<Record, T> mapper) {
         return this.readFiles(Optional.empty()).map(mapper).collect(Collectors.toList());
     }
@@ -153,7 +180,7 @@ public class QueryStatement {
     }
 
     private List<FileMetadata> writeDataToFiles(ObjectMetadata metadata, DataWriter writer,
-                                                List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
+            List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
 
         if (metadata.batchEnabled() && metadata.getBatchSize() > 0) {
             List<FileMetadata> files = new ArrayList<>();
@@ -168,7 +195,7 @@ public class QueryStatement {
     }
 
     private FileMetadata writeDataToFile(ObjectMetadata metadata, DataWriter writer,
-                                         List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
+            List<Record> records, Optional<PartitionSet> partition, boolean isCompact) {
         String dataDirLocation = metadata.getDataLocation();
         DataFormat format = metadata.getFormat();
         File dataFilePath = this.generateDataFilePath(dataDirLocation, format, partition, isCompact);
@@ -197,7 +224,7 @@ public class QueryStatement {
     }
 
     private Map<PartitionSet, List<Record>> aggregateRecordsByPartitions(List<Record> records,
-                                                                         List<PartitionMetadata> partitions) {
+            List<PartitionMetadata> partitions) {
         Map<PartitionSet, List<Record>> aggRecords = new HashMap<>();
         for (Record record : records) {
             PartitionSet partitionSet = this.classifyRecord(record, partitions);
@@ -245,7 +272,7 @@ public class QueryStatement {
     }
 
     private File generateDataFilePath(String dataDirLocation, DataFormat format, Optional<PartitionSet> partition,
-                                      boolean isCompact) {
+            boolean isCompact) {
         LocalDateTime dateTime = LocalDateTime.now();
         StringBuilder fileName = new StringBuilder();
         if (isCompact) {
