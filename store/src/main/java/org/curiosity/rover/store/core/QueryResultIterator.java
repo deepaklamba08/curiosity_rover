@@ -5,7 +5,7 @@ import org.curiosity.rover.store.record.Record;
 import java.util.Iterator;
 import java.util.function.Consumer;
 
-public class QueryResultIterator implements Iterator<Record> {
+public class QueryResultIterator implements ResultIterator {
 
     private final Iterator<Record> iterator;
 
@@ -22,11 +22,6 @@ public class QueryResultIterator implements Iterator<Record> {
     @Override
     public Record next() {
         return iterator.next();
-    }
-
-    @Override
-    public void remove() {
-        iterator.remove();
     }
 
     @Override
