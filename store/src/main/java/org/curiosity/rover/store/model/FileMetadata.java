@@ -15,11 +15,11 @@ public class FileMetadata {
     private final String createdBy;
     private final boolean isCompact;
     private final PartitionSet partition;
-    private final Map<String, FieldStats> fieldStats;
+    private final List<FieldStats> fieldStats;
 
     public FileMetadata(String fileName, String filePath, long recordCount, LocalDateTime createDate,
-            LocalDateTime updateDate, String createdBy, boolean isCompact, PartitionSet partition,
-            Map<String, FieldStats> fieldStats) {
+                        LocalDateTime updateDate, String createdBy, boolean isCompact, PartitionSet partition,
+                        List<FieldStats> fieldStats) {
         this.fileName = fileName;
         this.filePath = filePath;
         this.recordCount = recordCount;
@@ -63,7 +63,7 @@ public class FileMetadata {
         return updateDate;
     }
 
-    public Map<String, FieldStats> getFieldStats() {
+    public List<FieldStats> getFieldStats() {
         return fieldStats;
     }
 
@@ -76,7 +76,7 @@ public class FileMetadata {
         private String createdBy;
         private boolean isCompact;
         private PartitionSet partition;
-        private Map<String, FieldStats> fieldStats;
+        private List<FieldStats> fieldStats;
 
         public Builder withFileName(String fileName) {
             this.fileName = fileName;
@@ -118,16 +118,16 @@ public class FileMetadata {
             return this;
         }
 
-        public Builder withFieldStats(Map<String, FieldStats> fieldStats) {
+        public Builder withFieldStats(List<FieldStats> fieldStats) {
             this.fieldStats = fieldStats;
             return this;
         }
 
-        public Builder withFieldStat(String fieldName, FieldStats stats) {
+        public Builder withFieldStat(FieldStats stats) {
             if (this.fieldStats == null) {
-                this.fieldStats = new HashMap<>();
+                this.fieldStats = new ArrayList<>();
             }
-            this.fieldStats.put(fieldName, stats);
+            this.fieldStats.add(stats);
             return this;
         }
 

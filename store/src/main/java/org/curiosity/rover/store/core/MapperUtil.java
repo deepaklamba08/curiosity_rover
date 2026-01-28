@@ -146,8 +146,8 @@ public final class MapperUtil {
 
         }
         if (fileMetadata.getFieldStats() != null) {
-            ObjectNode statsNode = objectMapper.createObjectNode();
-            fileMetadata.getFieldStats().forEach((field, stats) -> statsNode.set(field, convertFieldStats(stats)));
+            ArrayNode statsNode = objectMapper.createArrayNode();
+            fileMetadata.getFieldStats().forEach(stats -> statsNode.add(convertFieldStats(stats)));
             fileNode.set("field_stats", statsNode);
         }
         return fileNode;
@@ -205,8 +205,8 @@ public final class MapperUtil {
         }
         JsonNode statsNode = fileElement.get("field_stats");
         if (statsNode != null && !statsNode.isNull()) {
-            statsNode.fields().forEachRemaining(entry -> {
-                builder.withFieldStat(entry.getKey(), mapFieldStats(entry.getValue()));
+            statsNode.forEach(entry -> {
+                builder.withFieldStat(mapFieldStats(entry));
             });
         }
         return builder.build();

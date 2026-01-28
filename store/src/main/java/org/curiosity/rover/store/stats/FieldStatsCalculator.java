@@ -5,6 +5,7 @@ import org.curiosity.rover.store.record.Record;
 import org.curiosity.rover.store.value.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Calculator for computing field-level statistics from a collection of records.
@@ -149,17 +150,12 @@ public class FieldStatsCalculator {
      * @param fieldNames List of field names to calculate statistics for
      * @return Map of field name to FieldStats
      */
-    public Map<String, FieldStats> calculateStats(Collection<Record> records, List<String> fieldNames) {
+    public List<FieldStats> calculateStats(Collection<Record> records, List<String> fieldNames) {
         if (fieldNames == null || fieldNames.isEmpty()) {
-            return Collections.emptyMap();
+            return Collections.emptyList();
         }
 
-        Map<String, FieldStats> statsMap = new LinkedHashMap<>();
-        for (String fieldName : fieldNames) {
-            FieldStats stats = calculateStats(records, fieldName);
-            statsMap.put(fieldName, stats);
-        }
-        return statsMap;
+        return fieldNames.stream().map(fieldName -> calculateStats(records, fieldName)).collect(Collectors.toList());
     }
 
     /**
@@ -168,9 +164,9 @@ public class FieldStatsCalculator {
      * @param records Collection of records to analyze
      * @return Map of field name to FieldStats for all fields
      */
-    public Map<String, FieldStats> calculateAllStats(Collection<Record> records) {
+    public List<FieldStats> calculateAllStats(Collection<Record> records) {
         if (records == null || records.isEmpty()) {
-            return Collections.emptyMap();
+            return Collections.emptyList();
         }
 
         // Collect all unique field names from all records

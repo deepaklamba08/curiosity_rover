@@ -178,8 +178,7 @@ public class QueryStatement {
         // Calculate field statistics if enabled
         if (metadata.isEnableStats() && records != null && !records.isEmpty()) {
             FieldStatsCalculator calculator = new FieldStatsCalculator();
-            Map<String, FieldStats> fieldStats = calculator.calculateAllStats(records);
-            builder.withFieldStats(fieldStats);
+            builder.withFieldStats(calculator.calculateAllStats(records));
         }
 
         return builder.build();
