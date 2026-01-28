@@ -69,7 +69,7 @@ public final class MapperUtil {
         JsonNode partitions = element.get("partition");
         if (partitions != null) {
             partitions.elements().forEachRemaining(partitionElement -> {
-               builder.withPartitionMetadata(MapperUtil.mapPartitionMetadata(partitionElement));
+                builder.withPartitionMetadata(MapperUtil.mapPartitionMetadata(partitionElement));
             });
         }
 
@@ -82,7 +82,6 @@ public final class MapperUtil {
                 .withColumn(partitionElement.get("column").asText())
                 .build();
     }
-
 
     static JsonNode convertObjectMetadata(ObjectMetadata metadata) {
         ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
@@ -116,7 +115,6 @@ public final class MapperUtil {
             metadata.getFiles().forEach(fileMetadata -> filesNode.add(MapperUtil.convertFileMetadata(fileMetadata)));
         }
 
-
         return jsonNode;
     }
 
@@ -143,10 +141,44 @@ public final class MapperUtil {
         if (fileMetadata.getPartition() != null) {
             ArrayNode partitionNode = objectMapper.createArrayNode();
             fileNode.set("partition", partitionNode);
-            fileMetadata.getPartition().getPartitions().forEach(pm -> partitionNode.add(MapperUtil.convertPartitionDetail(pm)));
+            fileMetadata.getPartition().getPartitions()
+                    .forEach(pm -> partitionNode.add(MapperUtil.convertPartitionDetail(pm)));
 
         }
+        if (fileMetadata.getFieldStats() != null) {
+            ObjectNode statsNode = objectMapper.createObjectNode();
+            fileMetadata.getFieldStats().forEach((field, stats) -> statsNode.set(field, convertFieldStats(stats)));
+            fileNode.set("field_stats", statsNode);
+        }
         return fileNode;
+    }
+
+    private static JsonNode convertFieldStats(FieldStats stats) {
+        ObjectMapper objectMapper = DataUtil.OBJECT_MAPPER;
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("field_name", stats.getFieldName());
+        node.put("total_count", stats.getTotalCount());
+        node.put("null_count", stats.getNullCount());
+        node.put("distinct_count", stats.getDistinctCount());
+        node.put("duplicate_count", stats.getDuplicateCount());
+
+        if (stats.getMinValue() != null)
+            node.put("min_value", stats.getMinValue());
+        if (stats.getMaxValue() != null)
+            node.put("max_value", stats.getMaxValue());
+        if (stats.getSum() != null)
+            node.put("sum", stats.getSum());
+        if (stats.getAverage() != null)
+            node.put("average", stats.getAverage());
+
+        if (stats.getMinLength() != null)
+            node.put("min_length", stats.getMinLength());
+        if (stats.getMaxLength() != null)
+            node.put("max_length", stats.getMaxLength());
+        if (stats.getAvgLength() != null)
+            node.put("avg_length", stats.getAvgLength());
+
+        return node;
     }
 
     static FileMetadata mapFileMetadata(JsonNode fileElement) {
@@ -161,19 +193,49 @@ public final class MapperUtil {
         JsonNode updateDate = fileElement.get("update_date");
 
         if (updateDate != null && !updateDate.isNull()) {
-            builder = builder.withUpdateDate(LocalDateTime.parse(updateDate.asText()));
+            builder.withUpdateDate(LocalDateTime.parse(updateDate.asText()));
         }
         JsonNode partitions = fileElement.get("partition");
-        if(partitions != null){
-            List<PartitionDetail> detailList=new ArrayList<>();
-            partitions.elements().forEachRemaining(partitionElement ->
-                    detailList.add(new PartitionDetail(
-                        MapperUtil.mapPartitionMetadata(partitionElement),
-                        partitionElement.get("value").asText()
-                ))
-            );
+        if (partitions != null) {
+            List<PartitionDetail> detailList = new ArrayList<>();
+            partitions.elements().forEachRemaining(partitionElement -> detailList.add(new PartitionDetail(
+                    MapperUtil.mapPartitionMetadata(partitionElement),
+                    partitionElement.get("value").asText())));
             builder.withPartition(new PartitionSet(detailList));
         }
+        JsonNode statsNode = fileElement.get("field_stats");
+        if (statsNode != null && !statsNode.isNull()) {
+            statsNode.fields().forEachRemaining(entry -> {
+                builder.withFieldStat(entry.getKey(), mapFieldStats(entry.getValue()));
+            });
+        }
+        return builder.build();
+    }
+
+    private static FieldStats mapFieldStats(JsonNode node) {
+        FieldStats.Builder builder = new FieldStats.Builder()
+                .withFieldName(node.get("field_name").asText())
+                .withTotalCount(node.get("total_count").asLong())
+                .withNullCount(node.get("null_count").asLong())
+                .withDistinctCount(node.get("distinct_count").asLong())
+                .withDuplicateCount(node.get("duplicate_count").asLong());
+
+        if (node.has("min_value"))
+            builder.withMinValue(node.get("min_value").asDouble());
+        if (node.has("max_value"))
+            builder.withMaxValue(node.get("max_value").asDouble());
+        if (node.has("sum"))
+            builder.withSum(node.get("sum").asDouble());
+        if (node.has("average"))
+            builder.withAverage(node.get("average").asDouble());
+
+        if (node.has("min_length"))
+            builder.withMinLength(node.get("min_length").asInt());
+        if (node.has("max_length"))
+            builder.withMaxLength(node.get("max_length").asInt());
+        if (node.has("avg_length"))
+            builder.withAvgLength(node.get("avg_length").asDouble());
+
         return builder.build();
     }
 

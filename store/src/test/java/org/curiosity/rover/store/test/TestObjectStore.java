@@ -35,10 +35,13 @@ public class TestObjectStore {
 
     @Test
     public void testRegisterObject() {
-        PartitionMetadata p1=new PartitionMetadata(0,"region");
-        PartitionMetadata p2=new PartitionMetadata(1,"type");
+        PartitionMetadata p1 = new PartitionMetadata(0, "region");
+        PartitionMetadata p2 = new PartitionMetadata(1, "type");
 
-        this.store.registerObject("asset", Collections.emptyMap(),Arrays.asList(p1,p2));
+        Map<String, String> properties = new HashMap<>();
+        properties.put("enableStats", "true");
+
+        this.store.registerObject("asset", properties, Arrays.asList(p1, p2));
     }
 
     @Test
@@ -49,13 +52,13 @@ public class TestObjectStore {
 
     @Test
     public void testBatchInsert() {
-        Map<String , Value> recordData1=new HashMap<>();
+        Map<String, Value> recordData1 = new HashMap<>();
         recordData1.put("id", Values.stringValue("1"));
         recordData1.put("name", Values.stringValue("Data"));
         recordData1.put("region", Values.stringValue("us"));
         recordData1.put("type", Values.stringValue("file"));
 
-        Map<String , Value> recordData2=new HashMap<>();
+        Map<String, Value> recordData2 = new HashMap<>();
         recordData2.put("id", Values.stringValue("2"));
         recordData2.put("name", Values.stringValue("text"));
         recordData2.put("region", Values.stringValue("uk"));
@@ -70,7 +73,8 @@ public class TestObjectStore {
 
     @Test
     public void testInsertJsonData() throws IOException {
-        JsonNode data = DataUtil.OBJECT_MAPPER.readTree(new File("D:\\dev\\curiosity_rover\\store\\src\\test\\resources\\data.json"));
+        JsonNode data = DataUtil.OBJECT_MAPPER
+                .readTree(new File("D:\\dev\\curiosity_rover\\store\\src\\test\\resources\\data.json"));
         JsonRecord record = new JsonRecord(data);
         QueryStatement statement = this.store.queryObject("test_1");
         statement.insertRecord(record);
@@ -79,10 +83,9 @@ public class TestObjectStore {
     @Test
     public void testQuery() {
         QueryStatement statement = this.store.queryObject("asset");
-        Operator operator=new LogicalOperator.Or(
+        Operator operator = new LogicalOperator.Or(
                 new RelationalOperator.Eq("region", Values.stringValue("us")),
-                new RelationalOperator.Eq("type", Values.stringValue("text"))
-        );
+                new RelationalOperator.Eq("type", Values.stringValue("text")));
         QueryResultIterator result = statement.executeQuery(operator);
         while (result.hasNext()) {
             Record record = result.next();
@@ -93,19 +96,22 @@ public class TestObjectStore {
     @Test
     public void testImportFile() {
         QueryStatement statement = this.store.queryObject("test_1");
-        statement.importFile("E:\\work\\hawkins-lab\\stranger\\stranger-store\\src\\main\\resources\\repository\\json\\app_config.json");
+        statement.importFile(
+                "E:\\work\\hawkins-lab\\stranger\\stranger-store\\src\\main\\resources\\repository\\json\\app_config.json");
     }
 
     @Test
-    public void testRollbackToVersion(){
-        this.store.rollbackToVersion("asset",1);
+    public void testRollbackToVersion() {
+        this.store.rollbackToVersion("asset", 1);
     }
+
     @Test
-    public void testDeleteVersion(){
-        this.store.deleteVersion("asset",1);
+    public void testDeleteVersion() {
+        this.store.deleteVersion("asset", 1);
     }
+
     @Test
-    public void testRunCompaction(){
+    public void testRunCompaction() {
         this.store.queryObject("asset").runCompaction();
     }
 }
