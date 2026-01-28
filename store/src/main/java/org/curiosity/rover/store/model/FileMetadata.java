@@ -3,8 +3,6 @@ package org.curiosity.rover.store.model;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
 
 public class FileMetadata {
     private final String fileName;
@@ -18,8 +16,8 @@ public class FileMetadata {
     private final List<FieldStats> fieldStats;
 
     public FileMetadata(String fileName, String filePath, long recordCount, LocalDateTime createDate,
-                        LocalDateTime updateDate, String createdBy, boolean isCompact, PartitionSet partition,
-                        List<FieldStats> fieldStats) {
+            LocalDateTime updateDate, String createdBy, boolean isCompact, PartitionSet partition,
+            List<FieldStats> fieldStats) {
         this.fileName = fileName;
         this.filePath = filePath;
         this.recordCount = recordCount;

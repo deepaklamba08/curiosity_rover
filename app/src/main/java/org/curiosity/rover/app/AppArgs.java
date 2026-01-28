@@ -16,8 +16,7 @@ public class AppArgs {
                 .boxed()
                 .collect(Collectors.toMap(
                         i -> args[i * 2],
-                        i -> args[i * 2 + 1]
-                ));
+                        i -> args[i * 2 + 1]));
         return new AppArgs(argMap);
     }
 }

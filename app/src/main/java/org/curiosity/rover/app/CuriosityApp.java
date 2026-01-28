@@ -10,6 +10,5 @@ public class CuriosityApp {
 
         AppArgs appArgs = AppArgs.parse(args);
 
-
     }
 }

@@ -2,7 +2,6 @@ package org.curiosity.rover.store.filter;
 
 import org.curiosity.rover.store.model.FileMetadata;
 import org.curiosity.rover.store.model.PartitionDetail;
-import org.curiosity.rover.store.model.PartitionMetadata;
 import org.curiosity.rover.store.model.PartitionSet;
 import org.curiosity.rover.store.value.IntegerValue;
 import org.curiosity.rover.store.value.StringValue;
@@ -30,9 +29,11 @@ public class FileVisitor implements Visitor {
 
     private FileExpression parseLogicalOperator(LogicalOperator operator) {
         if (operator instanceof LogicalOperator.And) {
-            return operator.getOperators().stream().map(this::visit).reduce((e1, e2) -> new FileExpression(e1.getPredicate().and(e2.getPredicate()))).orElseGet(null);
+            return operator.getOperators().stream().map(this::visit)
+                    .reduce((e1, e2) -> new FileExpression(e1.getPredicate().and(e2.getPredicate()))).orElseGet(null);
         } else if (operator instanceof LogicalOperator.Or) {
-            return operator.getOperators().stream().map(this::visit).reduce((e1, e2) -> new FileExpression(e1.getPredicate().or(e2.getPredicate()))).orElseGet(null);
+            return operator.getOperators().stream().map(this::visit)
+                    .reduce((e1, e2) -> new FileExpression(e1.getPredicate().or(e2.getPredicate()))).orElseGet(null);
         } else {
             throw new IllegalStateException("Unknown operator- " + operator);
         }
@@ -41,7 +42,8 @@ public class FileVisitor implements Visitor {
     private FileExpression parseRelationalOperator(RelationalOperator operator) {
         String key = operator.getKey();
         Value value = operator.getValue();
-        Predicate<FileMetadata> predicate = (file -> compareFile(file.getPartition(), key, value, RelationalOperator.Eq.class));
+        Predicate<FileMetadata> predicate = (file -> compareFile(file.getPartition(), key, value,
+                RelationalOperator.Eq.class));
         return new FileExpression(predicate);
     }
 
@@ -66,7 +68,7 @@ public class FileVisitor implements Visitor {
             } else {
                 return true;
             }
-        }else if(source instanceof IntegerValue){
+        } else if (source instanceof IntegerValue) {
             String target = String.valueOf(((IntegerValue) source).getValue());
             if (opCls.equals(RelationalOperator.Eq.class)) {
                 return partitionValue.equals(target);
