@@ -38,10 +38,7 @@ public class TestObjectStore {
         PartitionMetadata p1 = new PartitionMetadata(0, "region");
         PartitionMetadata p2 = new PartitionMetadata(1, "type");
 
-        Map<String, String> properties = new HashMap<>();
-        properties.put("enableStats", "true");
-
-        this.store.registerObject("asset", properties, Arrays.asList(p1, p2));
+        this.store.registerObject("asset", Collections.emptyMap(), Arrays.asList(p1, p2));
     }
 
     @Test

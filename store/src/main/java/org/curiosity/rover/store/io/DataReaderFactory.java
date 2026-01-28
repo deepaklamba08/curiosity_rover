@@ -8,6 +8,8 @@ public class DataReaderFactory {
         switch (format) {
             case JSON:
                 return new JsonDataReader();
+            case CSV:
+                return new CsvDataReader();
             default:
                 throw new IllegalArgumentException("Unsupported data format: " + format);
         }

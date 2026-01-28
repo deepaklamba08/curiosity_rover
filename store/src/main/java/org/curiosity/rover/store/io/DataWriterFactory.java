@@ -8,6 +8,8 @@ public class DataWriterFactory {
         switch (format) {
             case JSON:
                 return new JsonDataWriter();
+            case CSV:
+                return new CsvDataWriter();
             default:
                 throw new IllegalArgumentException("Unsupported data format: " + format);
         }
